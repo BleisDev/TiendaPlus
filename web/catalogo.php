@@ -88,8 +88,12 @@ button:hover {
     <p>$<?= number_format($fila['precio'],0,',','.') ?></p>
     <form method="POST" action="carrito.php">
     <input type="hidden" name="id" value="<?= $fila['id'] ?>">
-    <button type="submit">Añadir al carrito</button>
+    <input type="hidden" name="nombre" value="<?= htmlspecialchars($fila['nombre']) ?>">
+    <input type="hidden" name="precio" value="<?= $fila['precio'] ?>">
+    <input type="hidden" name="cantidad" value="1">
+    <button type="submit" name="agregar">Añadir al carrito 🛒</button>
 </form>
+
 
   </div>
 <?php endwhile; ?>
