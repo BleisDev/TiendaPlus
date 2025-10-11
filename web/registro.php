@@ -1,87 +1,78 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 session_start();
+include_once('../backend/conexion.php');
 
-// 1️⃣ Conexión a la base de datos
-$conn = new mysqli("localhost", "root", "", "TiendaPlus");
+$error = "";
+$redir = $_GET['redir'] ?? 'index.php';
 
-// 2️⃣ Verificar conexión
-if ($conn->connect_error) {
-    die("❌ Conexión fallida: " . $conn->connect_error);
-}
+if (isset($_POST['registrar'])) {
+    $nombre = trim($_POST['nombre']);
+    $email  = trim($_POST['email']);
+    $pass   = trim($_POST['pass']);
 
-// 3️⃣ Procesar formulario
-if ($_SERVER['REQUEST_METHOD'] === "POST" && isset($_POST['nombre'], $_POST['correo'], $_POST['password'])) {
-    $nombre   = trim($_POST['nombre']);
-    $correo   = trim($_POST['correo']);
-    $password = trim($_POST['password']);
-
-    // 🔒 Encriptar contraseña para clientes
-    $passwordHash = password_hash($password, PASSWORD_BCRYPT);
-
-    // Verificar si ya existe el correo
-    $check = $conn->prepare("SELECT id FROM usuarios WHERE email = ?");
-    $check->bind_param("s", $correo);
-    $check->execute();
-    $check->store_result();
-
-    if ($check->num_rows > 0) {
-        $error = "⚠️ El correo ya está registrado. Intenta con otro.";
+    // Validaciones
+    if (empty($nombre) || empty($email) || empty($pass)) {
+        $error = "❌ Todos los campos son obligatorios.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "❌ El correo no tiene un formato válido.";
+    } elseif (strlen($pass) < 6) {
+        $error = "❌ La contraseña debe tener al menos 6 caracteres.";
     } else {
-        $stmt = $conn->prepare("INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, 'cliente')");
-        $stmt->bind_param("sss", $nombre, $correo, $passwordHash);
+        $sqlCheck = $conn->prepare("SELECT * FROM usuarios WHERE email = ?");
+        $sqlCheck->bind_param("s", $email);
+        $sqlCheck->execute();
+        $resultadoCheck = $sqlCheck->get_result();
 
-        if ($stmt->execute()) {
-            // Redirige al login
-            header("Location: login.php");
-            exit();
+        if ($resultadoCheck->num_rows > 0) {
+            $error = "❌ El correo ya está registrado.";
         } else {
-            $error = "Error al registrar: " . $stmt->error;
+            $clave_segura = password_hash($pass, PASSWORD_DEFAULT);
+
+            $sql = $conn->prepare("INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)");
+            $sql->bind_param("sss", $nombre, $email, $clave_segura);
+            $sql->execute();
+
+            $_SESSION['id_usuario'] = $conn->insert_id;
+            $_SESSION['nombre'] = $nombre;
+
+            header("Location: $redir");
+            exit;
         }
     }
 }
-$conn->close();
 ?>
 
+<!-- HTML del formulario -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Registrarse - Tienda Plus</title>
-<style>
-body { font-family: Arial, sans-serif; padding: 20px; background-color: #f7f7f7; }
-h2 { text-align: center; }
-form { max-width: 400px; margin: 40px auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); }
-input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; }
-button { padding: 10px; width: 100%; background-color: #ff69b4; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-button:hover { background-color: #ff85c1; }
-p.error { color: red; text-align: center; }
-p.link { text-align: center; margin-top: 15px; }
-a { color: #ff69b4; text-decoration: none; }
-</style>
+    <meta charset="UTF-8">
+    <title>Registro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
+<div class="container mt-5" style="max-width: 500px;">
+    <h2 class="mb-4">👤 Registro de Usuario</h2>
 
-<h2>Registrarse</h2>
-<?php if(isset($error)) echo "<p class='error'>$error</p>"; ?>
+    <?php if (!empty($error)): ?>
+        <div class="alert alert-danger"><?= $error ?></div>
+    <?php endif; ?>
 
-<form method="POST" action="">
-    <label>Nombre:</label>
-    <input type="text" name="nombre" required>
-
-    <label>Correo:</label>
-    <input type="email" name="correo" required>
-
-    <label>Contraseña:</label>
-    <input type="password" name="password" required>
-
-    <button type="submit">Registrarse</button>
-</form>
-
-<p class="link">¿Ya tienes cuenta? <a href="login.php">Inicia sesión aquí</a></p>
-
+    <form method="POST">
+        <div class="mb-3">
+            <label>Nombre completo</label>
+            <input type="text" name="nombre" class="form-control" value="<?= htmlspecialchars($_POST['nombre'] ?? '') ?>">
+        </div>
+        <div class="mb-3">
+            <label>Correo electrónico</label>
+            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+        </div>
+        <div class="mb-3">
+            <label>Contraseña</label>
+            <input type="password" name="pass" class="form-control">
+        </div>
+        <button type="submit" name="registrar" class="btn btn-primary w-100">Registrarme</button>
+    </form>
+</div>
 </body>
 </html>

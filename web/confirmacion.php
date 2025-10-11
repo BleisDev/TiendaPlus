@@ -1,37 +1,34 @@
 <?php
-session_start();
-if(empty($_SESSION['carrito'])) {
-    header("Location: catalogo.php");
-    exit;
-}
+include("../backend/conexion.php");
 
-// Recibir datos del formulario
-$nombre   = $_POST['nombre'] ?? '';
-$direccion = $_POST['direccion'] ?? '';
-$metodo    = $_POST['metodo_pago'] ?? '';
-
-// Calcular total
-$total = array_sum(array_column($_SESSION['carrito'], 'precio'));
-
-// Aquí iría el INSERT en la base de datos (pedidos + detalle),
-// usando también $nombre, $direccion, $metodo y $total.
-
-// Limpiar carrito
-unset($_SESSION['carrito']);
+$pedido_id = $_GET['pedido_id'] ?? 0;
+$pedido = $conn->query("SELECT * FROM pedidos WHERE id = $pedido_id")->fetch_assoc();
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Confirmación</title>
-  <link rel="stylesheet" href="estilos.css">
+    <meta charset="UTF-8">
+    <title>Pedido Confirmado</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f9f9f9; text-align: center; padding-top: 60px; }
+        .card { background: white; width: 400px; margin: auto; padding: 20px; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { color: #e91e63; }
+        p { color: #555; }
+        a { display: inline-block; margin-top: 20px; background: #e91e63; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; }
+        a:hover { background: #c2185b; }
+    </style>
 </head>
 <body>
-  <h1 class="titulo">Pedido Confirmado</h1>
-  <p><strong>Nombre:</strong> <?= htmlspecialchars($nombre) ?></p>
-  <p><strong>Dirección:</strong> <?= htmlspecialchars($direccion) ?></p>
-  <p><strong>Método de pago:</strong> <?= htmlspecialchars($metodo) ?></p>
-  <p><strong>Total:</strong> $<?= number_format($total,0,',','.') ?></p>
-  <a href="catalogo.php" class="btn">Volver al catálogo</a>
+
+<div class="card">
+    <h1>✅ ¡Pedido Confirmado!</h1>
+    <p>Tu número de pedido es: <strong>#<?= $pedido_id ?></strong></p>
+    <p>Total: $<?= number_format($pedido['total'], 0, ',', '.') ?></p>
+    <p>Estado: <?= $pedido['estado'] ?></p>
+    <a href="catalogo.php">Volver al Catálogo</a>
+</div>
+
 </body>
 </html>
+

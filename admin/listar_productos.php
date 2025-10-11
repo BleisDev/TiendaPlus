@@ -1,37 +1,36 @@
 <?php
-include("../includes/db.php");
-
-$result = $conn->query("SELECT * FROM productos");
+include("../backend/conexion.php");
+$result = $conexion->query("
+  SELECT p.*, c.nombre AS categoria
+  FROM productos p
+  LEFT JOIN categorias c ON p.categoria_id = c.id
+  ORDER BY p.id DESC
+");
 ?>
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Lista de Productos</title>
-</head>
+<head><meta charset="utf-8"><title>Productos</title></head>
 <body>
-    <h2>Productos</h2>
-    <a href="crear_producto.php">+ Crear producto</a>
-    <br><br>
-    <table border="1" cellpadding="10">
-        <tr>
-            <th>ID</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Imagen</th><th>Acciones</th>
-        </tr>
-        <?php while($row = $result->fetch_assoc()): ?>
-        <tr>
-            <td><?= $row['id'] ?></td>
-            <td><?= $row['nombre'] ?></td>
-            <td><?= $row['precio'] ?></td>
-            <td><?= $row['stock'] ?></td>
-            <td><img src="../web/<?= $row['imagen'] ?>" width="80"></td>
-            <td>
-                <a href="editar_producto.php?id=<?= $row['id'] ?>">Editar</a> |
-                <a href="eliminar_producto.php?id=<?= $row['id'] ?>" 
-                   onclick="return confirm('¿Seguro que deseas eliminar este producto?')">Eliminar</a>
-            </td>
-        </tr>
-        <?php endwhile; ?>
-    </table>
+<h1>Productos</h1>
+<a href="crear_producto.php">➕ Nuevo producto</a>
+<table border="1">
+  <tr><th>ID</th><th>Imagen</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Categoría</th><th>Acciones</th></tr>
+  <?php while($p = $result->fetch_assoc()): ?>
+  <tr>
+    <td><?= $p['id'] ?></td>
+    <td><?php if($p['imagen']): ?><img src="../web/<?= $p['imagen'] ?>" width="60"><?php endif;?></td>
+    <td><?= htmlspecialchars($p['nombre']) ?></td>
+    <td>$<?= number_format($p['precio'],2) ?></td>
+    <td><?= $p['stock'] ?></td>
+    <td><?= $p['categoria'] ?></td>
+    <td>
+      <a href="editar_producto.php?id=<?= $p['id'] ?>">Editar</a>
+      |
+      <a href="eliminar_producto.php?id=<?= $p['id'] ?>" onclick="return confirm('Eliminar?')">Eliminar</a>
+    </td>
+  </tr>
+  <?php endwhile; ?>
+</table>
 </body>
 </html>
+

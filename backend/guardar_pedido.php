@@ -1,57 +1,57 @@
 <?php
 session_start();
-include("conexion.php");
+include_once('conexion.php');
 
-if (!isset($_SESSION['usuario_id'])) {
-    header("Location: ../web/login.php");
-    exit;
-}
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if(!isset($_SESSION['id_usuario']) || !isset($_POST['nombre'])){
     header("Location: ../web/carrito.php");
     exit;
 }
 
-$usuario_id = intval($_SESSION['usuario_id']);
-$direccion = $conn->real_escape_string($_POST['direccion'] ?? '');
-$metodo_pago = $conn->real_escape_string($_POST['metodo_pago'] ?? 'Efectivo');
+$id_usuario = intval($_SESSION['id_usuario']);
+$nombre = trim($_POST['nombre']);
+$direccion = trim($_POST['direccion']);
+$metodo_pago = trim($_POST['metodo_pago']);
 
-$carrito = $_SESSION['carrito'] ?? [];
-if (empty($carrito)) {
-    $_SESSION['msg'] = "Carrito vacío.";
-    header("Location: ../web/carrito.php");
-    exit;
-}
+// Guardar pedido en 'pedidos'
+$stmt = $conn->prepare("
+INSERT INTO pedidos (id_usuario, nombre, direccion_envio, metodo_pago, fecha, estado)
+VALUES (?, ?, ?, ?, NOW(), 'pendiente')
+");
+$stmt->bind_param("isss", $id_usuario, $nombre, $direccion, $metodo_pago);
+$stmt->execute();
+$id_pedido = $stmt->insert_id;
+$stmt->close();
 
-// calcular total
+// Guardar detalle
+$carrito = $conn->query("SELECT c.id_producto, c.cantidad, p.precio 
+                         FROM carrito c JOIN productos p ON c.id_producto=p.id 
+                         WHERE c.id_usuario=$id_usuario");
+
 $total = 0;
-foreach($carrito as $it) {
-    $total += $it['precio'] * $it['cantidad'];
+while($item = $carrito->fetch_assoc()){
+    $subtotal = $item['precio']*$item['cantidad'];
+    $total += $subtotal;
+
+    $stmt2 = $conn->prepare("
+        INSERT INTO detalle_pedido (id_pedido, id_producto, cantidad, precio_unitario)
+        VALUES (?, ?, ?, ?)
+    ");
+    $stmt2->bind_param("iiid", $id_pedido, $item['id_producto'], $item['cantidad'], $item['precio']);
+    $stmt2->execute();
+    $stmt2->close();
 }
 
-// insertar pedido
-$stmt = $conn->prepare("INSERT INTO pedidos (usuario_id, total, estado, direccion, metodo_pago, fecha) VALUES (?, ?, 'Pendiente', ?, ?, NOW())");
-$stmt->bind_param("idss", $usuario_id, $total, $direccion, $metodo_pago);
-if (!$stmt->execute()) {
-    $_SESSION['msg'] = "Error creando pedido: " . $stmt->error;
-    header("Location: ../web/carrito.php");
-    exit;
-}
+// Guardar info en sesión para mostrar en pedido_exitoso
+$_SESSION['pedido_info'] = [
+    'nombre'=>$nombre,
+    'direccion'=>$direccion,
+    'metodo_pago'=>$metodo_pago,
+    'total'=>$total
+];
 
-$pedido_id = $stmt->insert_id;
+// Limpiar carrito
+$conn->query("DELETE FROM carrito WHERE id_usuario=$id_usuario");
 
-// detalle
-$detalle = $conn->prepare("INSERT INTO detalle_pedidos (pedido_id, producto_id, cantidad, precio_unit) VALUES (?, ?, ?, ?)");
-foreach($carrito as $it) {
-    $pid = intval($it['id']);
-    $cant = intval($it['cantidad']);
-    $precio = floatval($it['precio']);
-    $detalle->bind_param("iiid", $pedido_id, $pid, $cant, $precio);
-    $detalle->execute();
-}
-
-// limpiar carrito
-unset($_SESSION['carrito']);
-$_SESSION['msg'] = "Pedido creado correctamente. ID: " . $pedido_id;
-header("Location: ../web/confirmacion.php?pedido_id=".$pedido_id);
+// Redirigir a confirmación
+header("Location: ../web/pedido_exitoso.php");
 exit;

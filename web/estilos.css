@@ -102,3 +102,97 @@ body {
   gap: 15px;
   justify-content: center;
 }
+/* === Diseño Responsive para Tienda Plus === */
+
+/* Adaptación general para tablets y móviles */
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+    font-size: 15px;
+  }
+
+  .titulo {
+    font-size: 1.5em;
+    margin: 15px 0;
+  }
+
+  /* Catálogo en 2 columnas */
+  .catalogo {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    padding: 10px;
+  }
+
+  .producto {
+    padding: 10px;
+  }
+
+  .producto img {
+    width: 100%;
+    height: auto;
+  }
+
+  /* Formularios (login, registro, checkout) */
+  .contenedor-form {
+    max-width: 90%;
+    padding: 15px;
+  }
+
+  .contenedor-form input,
+  .contenedor-form select {
+    font-size: 1em;
+  }
+
+  /* Carrito */
+  .carrito {
+    width: 95%;
+    margin: 10px auto;
+    padding: 15px;
+  }
+
+  .carrito ul li {
+    font-size: 0.95em;
+  }
+
+  .total {
+    text-align: center;
+    font-size: 1.1em;
+  }
+
+  .acciones {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .acciones .btn {
+    width: 100%;
+  }
+}
+
+/* Para pantallas muy pequeñas (celulares de menos de 480px) */
+@media (max-width: 480px) {
+  .titulo {
+    font-size: 1.3em;
+  }
+
+  /* Catálogo en 1 sola columna */
+  .catalogo {
+    grid-template-columns: 1fr;
+  }
+
+  .producto {
+    margin: 0 auto;
+  }
+
+  .btn, .btn-add {
+    width: 100%;
+    font-size: 0.9em;
+    padding: 10px;
+  }
+
+  .carrito {
+    font-size: 0.9em;
+  }
+}
+  
+

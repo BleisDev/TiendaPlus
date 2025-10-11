@@ -56,6 +56,11 @@
     <h1>Nueva Colección de Invierno</h1>
     <p>Encuentra tu estilo con Tienda Plus</p>
     <a href="catalogo.php" class="btn btn-primary btn-lg">Ver colección</a>
+   <li class="nav-item"><a class="nav-link" href="guia_tallas.php">Guía de tallas</a></li>
+
+
+</li>
+
   </div>
 </section>
 

@@ -1,28 +1,27 @@
 <?php
-include("../includes/db.php");
+include_once("../backend/conexion.php");
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $nombre = $_POST['nombre'];
-    $descripcion = $_POST['descripcion'];
-    $precio = $_POST['precio'];
-    $stock = $_POST['stock'];
+$nombre = $_POST['nombre'];
+$descripcion = $_POST['descripcion'] ?? '';
+$precio = floatval($_POST['precio']);
+$stock = intval($_POST['stock']);
+$categoria_id = $_POST['categoria_id'] ?: NULL;
 
-    // Manejo de la imagen
-    $imagen = null;
-    if (!empty($_FILES['imagen']['name'])) {
-        $imagen = "img/" . basename($_FILES['imagen']['name']);
-        move_uploaded_file($_FILES['imagen']['tmp_name'], "../web/" . $imagen);
-    }
-
-    $sql = "INSERT INTO productos (nombre, descripcion, precio, stock, imagen) 
-            VALUES (?, ?, ?, ?, ?)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ssdis", $nombre, $descripcion, $precio, $stock, $imagen);
-
-    if ($stmt->execute()) {
-        header("Location: listar_productos.php?msg=Producto+creado");
-    } else {
-        echo "Error: " . $conn->error;
+// subir imagen
+$imagen_path = NULL;
+if(!empty($_FILES['imagen']['name'])) {
+    $target_dir = "../web/img/products/";
+    if(!is_dir($target_dir)) mkdir($target_dir,0755,true);
+    $ext = pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION);
+    $file = uniqid('p_').'.'.$ext;
+    if(move_uploaded_file($_FILES['imagen']['tmp_name'], $target_dir.$file)) {
+        $imagen_path = "img/products/".$file;
     }
 }
-?>
+
+$stmt = $conn->prepare("INSERT INTO productos (nombre,descripcion,precio,stock,categoria_id,imagen,fecha_creacion) VALUES (?,?,?,?,?,?,NOW())");
+$stmt->bind_param("ssdiis", $nombre, $descripcion, $precio, $stock, $categoria_id, $imagen_path);
+$stmt->execute();
+
+header("Location: productos.php");
+exit;

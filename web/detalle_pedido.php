@@ -2,14 +2,16 @@
 session_start();
 include_once('../backend/conexion.php');
 
-$pedido_id = $_GET['id'] ?? 0;
-if (!$pedido_id) die("❌ Pedido no válido");
+$rol = $_SESSION['rol'] ?? 'cliente';
+$id_pedido = $_GET['id'] ?? 0;
+
+if ($id_pedido == 0) die("❌ Pedido no válido");
 
 // Consulta del pedido
 $sql = "SELECT p.id, p.fecha, p.total, u.nombre AS cliente, u.email
         FROM pedidos p
         INNER JOIN usuarios u ON p.usuario_id = u.id
-        WHERE p.id = $pedido_id";
+        WHERE p.id = $id_pedido";
 $res = $conn->query($sql);
 $pedido = $res->fetch_assoc();
 if (!$pedido) die("❌ Pedido no encontrado");
@@ -18,7 +20,7 @@ if (!$pedido) die("❌ Pedido no encontrado");
 $sql_detalle = "SELECT pr.nombre, dp.cantidad, dp.precio_unitario, (dp.cantidad*dp.precio_unitario) AS subtotal
                 FROM detalle_pedido dp
                 INNER JOIN productos pr ON dp.producto_id = pr.id
-                WHERE dp.pedido_id = $pedido_id";
+                WHERE dp.pedido_id = $id_pedido";
 $detalles = $conn->query($sql_detalle);
 ?>
 
@@ -26,24 +28,40 @@ $detalles = $conn->query($sql_detalle);
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>🧾 Factura Pedido #<?= $pedido['id'] ?></title>
+<title>🧾 Detalle del Pedido #<?= $pedido['id'] ?></title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-body { font-family: Arial, sans-serif; background: #f8f9fa; }
-.container { margin: 50px auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.1); max-width: 900px; }
-h2, h4 { text-align: center; }
-.table th, .table td { text-align: center; vertical-align: middle; }
-.botones { display: flex; justify-content: space-between; margin-top: 30px; }
-@media print {
-    .botones { display: none; }
+body {
+    background: #f8f9fa;
+    font-family: 'Segoe UI', sans-serif;
+}
+.container {
+    margin-top: 50px;
+    background: #fff;
+    padding: 35px;
+    border-radius: 15px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+}
+h2 {
+    margin-bottom: 20px;
+    color: #333;
+    text-align: center;
+}
+.table th, .table td {
+    text-align: center;
+    vertical-align: middle;
+}
+.botones {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 30px;
 }
 </style>
 </head>
 <body>
 
-<div class="container" id="factura">
-    <h2>🧾 Factura Tienda Plus</h2>
-    <p><strong>Pedido #:</strong> <?= $pedido['id'] ?></p>
+<div class="container">
+    <h2>🧾 Detalle del Pedido #<?= $pedido['id'] ?></h2>
     <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente']) ?></p>
     <p><strong>Correo:</strong> <?= htmlspecialchars($pedido['email']) ?></p>
     <p><strong>Fecha:</strong> <?= $pedido['fecha'] ?></p>
@@ -79,9 +97,13 @@ h2, h4 { text-align: center; }
         <a href="http://localhost/TiendaPlus/backend/panel.php?tabla=pedidos" class="btn btn-secondary">
             ⬅️ Volver a pedidos
         </a>
-        <button class="btn btn-success" onclick="window.print();">🧾 Descargar factura PDF</button>
+        <a href="factura.php?id=<?= $id_pedido ?>" class="btn btn-success">
+            🧾 Descargar factura PDF
+        </a>
     </div>
 </div>
 
 </body>
+</html>
+
 </html>
