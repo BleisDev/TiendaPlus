@@ -194,5 +194,43 @@ body {
     font-size: 0.9em;
   }
 }
-  
+ /* === ALERTAS FLOTANTES (Mensajes animados del carrito) === */
+#alert-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #28a745; /* verde éxito por defecto */
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  font-weight: 500;
+  font-size: 0.95em;
+  opacity: 0;
+  display: none;
+  z-index: 9999;
+  transition: all 0.4s ease;
+  animation: slideIn 0.3s ease forwards;
+}
 
+/* Efecto de entrada (desde la derecha) */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Variantes de color según tipo */
+#alert-message.success {
+  background-color: #28a745;
+}
+
+#alert-message.error {
+  background-color: #dc3545;
+}
+ 

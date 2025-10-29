@@ -17,7 +17,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         // Verificar la contraseña
         if (password_verify($password, $usuario['password'])) {
-            $_SESSION['usuario_id'] = $usuario['id'];
+        $_SESSION['usuario_id']  = $usuario['id'];
             $_SESSION['usuario_nombre'] = $usuario['nombre'];
 
             echo "✅ Bienvenido, " . $usuario['nombre'];

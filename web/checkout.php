@@ -1,179 +1,155 @@
 <?php
-if(session_status() === PHP_SESSION_NONE) session_start();
-include_once('../backend/conexion.php');
+session_start();
 
-$usuario_id = $_SESSION['id_usuario'] ?? null;
-
-// Inicializar carrito si no existe
-if(!isset($_SESSION['carrito'])) $_SESSION['carrito'] = [];
-
-// Paso 1: Carrito + formulario de pago
-if(isset($_POST['pagar'])){
-    $cliente = trim($_POST['cliente']);
-    $email = trim($_POST['email']);
-    $metodo_pago = $_POST['metodo_pago'] ?? 'Efectivo';
-
-    // Validar datos
-    if(empty($cliente) || empty($email)){
-        $error = "Debes llenar todos los campos.";
-    } else {
-        // Calcular total
-        $total = 0;
-        foreach($_SESSION['carrito'] as $item){
-            $total += $item['precio'] * $item['cantidad'];
-        }
-
-        // Insertar en tabla pedidos (maestro)
-        $stmt = $conn->prepare("INSERT INTO pedidos (usuario_id, fecha, total, estado, cliente, email) VALUES (?, NOW(), ?, 'pendiente', ?, ?)");
-        $stmt->bind_param("idss", $usuario_id, $total, $cliente, $email);
-        $stmt->execute();
-        $pedido_id = $stmt->insert_id;
-
-        // Insertar en detalle_pedido
-        $stmt_detalle = $conn->prepare("INSERT INTO detalle_pedido (pedido_id, producto_id, cantidad, precio_unitario) VALUES (?, ?, ?, ?)");
-        foreach($_SESSION['carrito'] as $id => $item){
-            $stmt_detalle->bind_param("iiid", $pedido_id, $id, $item['cantidad'], $item['precio']);
-            $stmt_detalle->execute();
-        }
-
-        // Limpiar carrito
-        $_SESSION['carrito'] = [];
-
-        // Redirigir a resumen
-        header("Location: checkout.php?resumen=1&pedido_id=$pedido_id");
-        exit;
-    }
+// Verificar carrito
+if (empty($_SESSION['carrito'])) {
+    header("Location: carrito.php");
+    exit;
 }
 
-// Paso 3: Mostrar resumen si viene de redirección
-$resumen = $_GET['resumen'] ?? 0;
-$pedido_id = $_GET['pedido_id'] ?? 0;
-if($resumen && $pedido_id){
-    $res_pedido = $conn->query("SELECT * FROM pedidos WHERE id=$pedido_id")->fetch_assoc();
-    $res_detalle = $conn->query("SELECT dp.*, p.nombre FROM detalle_pedido dp JOIN productos p ON dp.producto_id=p.id WHERE dp.pedido_id=$pedido_id");
+// Conexión BD
+$conn = new mysqli("localhost", "root", "", "TiendaPlus");
+if ($conn->connect_error) {
+    die("Error de conexión: " . $conn->connect_error);
+}
+
+$usuario_id = $_SESSION['usuario_id'] ?? null;
+
+// Si se envía el formulario
+if (isset($_POST['finalizar'])) {
+    $cliente = trim($_POST['nombre']);
+    $email = trim($_POST['email']);
+    $direccion = trim($_POST['direccion']);
+    $ciudad = trim($_POST['ciudad']);
+    $metodo_pago = $_POST['metodo_pago'];
+    $estado = 'pendiente';
+    $total = 0;
+
+    foreach ($_SESSION['carrito'] as $item) {
+        $total += $item['precio'] * $item['cantidad'];
+    }
+
+    // Insertar pedido
+    $stmt = $conn->prepare("
+        INSERT INTO pedidos (usuario_id, total, estado, cliente, email, direccion, ciudad, metodo_pago)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ");
+    $stmt->bind_param("idssssss", $usuario_id, $total, $estado, $cliente, $email, $direccion, $ciudad, $metodo_pago);
+    $stmt->execute();
+    $pedido_id = $stmt->insert_id;
+    $stmt->close();
+
+    // ✅ Insertar detalle de productos (se ejecuta antes de redirigir)
+    $stmt_det = $conn->prepare("
+        INSERT INTO detalle_pedido (pedido_id, producto_id, cantidad, precio)
+        VALUES (?, ?, ?, ?)
+    ");
+
+    foreach ($_SESSION['carrito'] as $producto_id => $item) {
+        $stmt_det->bind_param("iiid", $pedido_id, $producto_id, $item['cantidad'], $item['precio']);
+        $stmt_det->execute();
+
+        // Mensaje opcional (solo para verificar que se insertó correctamente)
+        if ($stmt_det->error) {
+            echo "<p style='color:red;'>❌ Error al insertar detalle: " . $stmt_det->error . "</p>";
+        }
+    }
+    $stmt_det->close();
+
+    // Guardar info para mostrar después
+    $_SESSION['ultimo_pedido'] = [
+        'id' => $pedido_id,
+        'cliente' => $cliente,
+        'email' => $email,
+        'direccion' => $direccion,
+        'ciudad' => $ciudad,
+        'metodo_pago' => $metodo_pago,
+        'total' => $total,
+        'productos' => $_SESSION['carrito']
+    ];
+
+    // Vaciar carrito
+    $_SESSION['carrito'] = [];
+
+    // 🔹 Redirigir después de insertar todo correctamente
+    header("Location: pedido_exitoso.php");
+    exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>Checkout - Tienda Plus</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-body { background:#f8f9fa; font-family:Arial,sans-serif; }
-.container { max-width:900px; margin:40px auto; }
-.card { border-radius:12px; margin-bottom:20px; }
-.thumb { width:80px; height:80px; object-fit:cover; border-radius:8px; }
-.total { font-size:1.2rem; font-weight:bold; text-align:right; margin-top:20px; }
-.btn-pink { background: #f08db2; color: white; font-weight: 600; border-radius: 30px; padding: 10px 20px; border: none; }
-.btn-pink:hover { background: #e76da0; color: white; }
-h2 { text-align:center; margin-bottom:30px; }
+body { font-family: Arial, sans-serif; background: #fafafa; }
+form {
+  background: #fff;
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+h1 { text-align: center; color: #ff69b4; }
+label { display: block; margin-top: 10px; }
+input, select {
+  width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px;
+}
+button {
+  background: #ff69b4; color: white; border: none;
+  padding: 10px 20px; margin-top: 20px;
+  border-radius: 5px; cursor: pointer;
+}
+button:hover { background: #ff85c1; }
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+th { background: #ffe5f0; }
 </style>
 </head>
 <body>
-<div class="container">
+<h1>Finalizar Compra 🛒</h1>
 
-<?php if($resumen && $pedido_id): ?>
-    <!-- Paso 3: Resumen de Pedido -->
-    <h2>✅ Resumen de tu Pedido #<?= $res_pedido['id'] ?></h2>
-    <p><strong>Cliente:</strong> <?= htmlspecialchars($res_pedido['cliente']) ?></p>
-    <p><strong>Email:</strong> <?= htmlspecialchars($res_pedido['email']) ?></p>
-    <p><strong>Fecha:</strong> <?= $res_pedido['fecha'] ?></p>
+<form method="POST">
+  <label>Nombre completo</label>
+  <input type="text" name="nombre" required>
 
-    <table class="table table-bordered mt-3">
-        <thead class="table-dark">
-            <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Precio Unitario</th>
-                <th>Subtotal</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php $total = 0; while($fila = $res_detalle->fetch_assoc()): 
-                $subtotal = $fila['cantidad'] * $fila['precio_unitario'];
-                $total += $subtotal;
-            ?>
-            <tr>
-                <td><?= htmlspecialchars($fila['nombre']) ?></td>
-                <td><?= $fila['cantidad'] ?></td>
-                <td>$<?= number_format($fila['precio_unitario'],0,',','.') ?></td>
-                <td>$<?= number_format($subtotal,0,',','.') ?></td>
-            </tr>
-            <?php endwhile; ?>
-        </tbody>
-    </table>
-    <h4 class="text-end">Total: $<?= number_format($total,0,',','.') ?></h4>
-    <div class="d-flex justify-content-between mt-3">
-        <a href="index.php" class="btn btn-secondary">⬅️ Volver a la tienda</a>
-        <a href="factura.php?id=<?= $pedido_id ?>" class="btn btn-success">🧾 Descargar factura PDF</a>
-    </div>
+  <label>Correo electrónico</label>
+  <input type="email" name="email" required>
 
-<?php else: ?>
-    <!-- Paso 1: Mostrar Carrito + Formulario de Pago -->
-    <h2>💳 Checkout / Pago</h2>
+  <label>Dirección</label>
+  <input type="text" name="direccion" required>
 
-    <?php if(empty($_SESSION['carrito'])): ?>
-        <div class="alert alert-info text-center">Tu carrito está vacío. <a href="index.php">Volver a la tienda</a></div>
-    <?php else: ?>
-        <?php if(!empty($error)): ?>
-            <div class="alert alert-danger"><?= $error ?></div>
-        <?php endif; ?>
-        <form method="POST">
-            <div class="card p-3 mb-4">
-                <h4>Productos en tu carrito</h4>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Cantidad</th>
-                            <th>Precio Unitario</th>
-                            <th>Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php $total=0; foreach($_SESSION['carrito'] as $id => $item): 
-                            $subtotal = $item['precio'] * $item['cantidad'];
-                            $total += $subtotal;
-                        ?>
-                        <tr>
-                            <td><?= htmlspecialchars($item['nombre']) ?></td>
-                            <td><?= $item['cantidad'] ?></td>
-                            <td>$<?= number_format($item['precio'],0,',','.') ?></td>
-                            <td>$<?= number_format($subtotal,0,',','.') ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-                <h5 class="text-end">Total: $<?= number_format($total,0,',','.') ?></h5>
-            </div>
+  <label>Ciudad</label>
+  <input type="text" name="ciudad" required>
 
-            <div class="card p-3">
-                <h4>Datos de Pago</h4>
-                <div class="mb-3">
-                    <label>Nombre</label>
-                    <input type="text" name="cliente" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label>Email</label>
-                    <input type="email" name="email" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label>Método de pago</label>
-                    <select name="metodo_pago" class="form-control">
-                        <option value="Efectivo">Efectivo</option>
-                        <option value="Tarjeta">Tarjeta</option>
-                        <option value="Transferencia">Transferencia</option>
-                    </select>
-                </div>
+  <label>Método de pago</label>
+  <select name="metodo_pago" required>
+    <option value="Efectivo">Efectivo</option>
+    <option value="Tarjeta">Tarjeta</option>
+    <option value="Transferencia">Transferencia</option>
+  </select>
 
-                <button type="submit" name="pagar" class="btn btn-pink w-100">Generar Venta</button>
-            </div>
-        </form>
-    <?php endif; ?>
-<?php endif; ?>
+  <h3>Resumen del pedido</h3>
+  <table>
+    <tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr>
+    <?php
+    $total = 0;
+    foreach ($_SESSION['carrito'] as $item):
+        $subtotal = $item['precio'] * $item['cantidad'];
+        $total += $subtotal;
+    ?>
+    <tr>
+      <td><?= htmlspecialchars($item['nombre']) ?></td>
+      <td><?= $item['cantidad'] ?></td>
+      <td>$<?= number_format($item['precio'], 0, ',', '.') ?></td>
+      <td>$<?= number_format($subtotal, 0, ',', '.') ?></td>
+    </tr>
+    <?php endforeach; ?>
+    <tr><td colspan="3"><strong>Total a pagar:</strong></td><td><strong>$<?= number_format($total, 0, ',', '.') ?></strong></td></tr>
+  </table>
 
-</div>
+  <button type="submit" name="finalizar">✅ Confirmar y Finalizar Compra</button>
+</form>
 </body>
 </html>

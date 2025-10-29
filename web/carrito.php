@@ -1,165 +1,312 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) session_start();
+session_start();
+require_once('../backend/conexion.php'); // Asegúrate de ajustar la ruta si es diferente
 
-// --- Conexión a la base de datos ---
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db   = "tiendaplus";
-$conn = new mysqli($host, $user, $pass, $db);
-if($conn->connect_error) die("Conexión fallida: " . $conn->connect_error);
+// Inicializar carrito si no existe
+if (!isset($_SESSION['carrito'])) {
+    $_SESSION['carrito'] = [];
+}
 
-// --- Usuario logueado ---
-$usuario_id = $_SESSION['id_usuario'] ?? null;
+// --- Agregar producto ---
+if (isset($_POST['agregar'])) {
+    $id = $_POST['id'];
 
-// --- Inicializar carrito ---
-if(!isset($_SESSION['carrito'])) $_SESSION['carrito'] = [];
+    // ✅ Validar stock desde la base de datos
+    $stmt = $conn->prepare("SELECT nombre, precio, stock FROM productos WHERE id=?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $producto = $res->fetch_assoc();
+    $stmt->close();
 
-// --- Agregar producto al carrito ---
-if(isset($_POST['agregar'])){
-    $id = intval($_POST['id']);
-    $nombre = $_POST['nombre'];
-    $precio = floatval($_POST['precio']);
-    $imagen = $_POST['imagen'] ?? 'img/products/default.png';
-    $cantidad = max(1, intval($_POST['cantidad']));
+    if (!$producto) {
+        header("Location: carrito.php?error=producto_no_existe");
+        exit;
+    }
 
-    // Guardar en sesión
-    if(isset($_SESSION['carrito'][$id])){
-        $_SESSION['carrito'][$id]['cantidad'] += $cantidad;
+    if ($producto['stock'] <= 0) {
+        header("Location: carrito.php?error=sin_stock");
+        exit;
+    }
+
+    $nombre = $producto['nombre'];
+    $precio = $producto['precio'];
+    $cantidad = 1;
+
+    if (isset($_SESSION['carrito'][$id])) {
+        $nuevaCantidad = $_SESSION['carrito'][$id]['cantidad'] + 1;
+        if ($nuevaCantidad > $producto['stock']) {
+            header("Location: carrito.php?error=stock_insuficiente");
+            exit;
+        }
+        $_SESSION['carrito'][$id]['cantidad'] = $nuevaCantidad;
     } else {
         $_SESSION['carrito'][$id] = [
+            'id' => $id,
             'nombre' => $nombre,
             'precio' => $precio,
-            'imagen' => $imagen,
             'cantidad' => $cantidad
         ];
     }
-
-    // Guardar en base de datos si está logueado
-    if($usuario_id){
-        $stmt = $conn->prepare("
-            INSERT INTO carrito (usuario_id, producto_id, cantidad)
-            VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE cantidad = VALUES(cantidad)
-        ");
-        $stmt->bind_param("iii", $usuario_id, $id, $_SESSION['carrito'][$id]['cantidad']);
-        $stmt->execute();
-    }
+    header("Location: carrito.php?added=1");
+    exit;
 }
 
 // --- Eliminar producto ---
-if(isset($_POST['eliminar'])){
-    $id_eliminar = intval($_POST['eliminar']);
-    unset($_SESSION['carrito'][$id_eliminar]);
-
-    if($usuario_id){
-        $stmt = $conn->prepare("DELETE FROM carrito WHERE usuario_id=? AND producto_id=?");
-        $stmt->bind_param("ii", $usuario_id, $id_eliminar);
-        $stmt->execute();
-    }
+if (isset($_POST['eliminar'])) {
+    $id = $_POST['id'];
+    unset($_SESSION['carrito'][$id]);
+    header("Location: carrito.php?deleted=1");
+    exit;
 }
 
-// --- Modificar cantidades ---
-if(isset($_POST['modificar']) && isset($_POST['cant'])){
-    foreach($_POST['cant'] as $id => $cantidad){
-        $id = intval($id);
-        $cantidad = max(1, intval($cantidad));
-        if(isset($_SESSION['carrito'][$id])){
-            $_SESSION['carrito'][$id]['cantidad'] = $cantidad;
+// --- Actualizar cantidad ---
+if (isset($_POST['actualizar'])) {
+    $id = $_POST['id'];
+    $cantidad = max(1, intval($_POST['cantidad']));
 
-            if($usuario_id){
-                $stmt = $conn->prepare("UPDATE carrito SET cantidad=? WHERE usuario_id=? AND producto_id=?");
-                $stmt->bind_param("iii", $cantidad, $usuario_id, $id);
-                $stmt->execute();
-            }
-        }
-    }
-}
-
-// --- Cargar carrito desde la base de datos al iniciar sesión ---
-if($usuario_id){
-    $stmt = $conn->prepare("
-        SELECT c.producto_id, c.cantidad, p.nombre, p.precio, p.imagen
-        FROM carrito c
-        JOIN productos p ON p.id = c.producto_id
-        WHERE c.usuario_id = ?
-    ");
-    $stmt->bind_param("i", $usuario_id);
+    // ✅ Validar stock al actualizar
+    $stmt = $conn->prepare("SELECT stock FROM productos WHERE id=?");
+    $stmt->bind_param("i", $id);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $_SESSION['carrito'] = []; // limpiar sesión antes de cargar
-    while($row = $result->fetch_assoc()){
-        $_SESSION['carrito'][$row['producto_id']] = [
-            'nombre' => $row['nombre'],
-            'precio' => $row['precio'],
-            'imagen' => $row['imagen'],
-            'cantidad' => $row['cantidad']
-        ];
-    }
-}
+    $res = $stmt->get_result();
+    $producto = $res->fetch_assoc();
+    $stmt->close();
 
-// --- Calcular total ---
-$total = 0;
-foreach($_SESSION['carrito'] as $item){
-    $total += $item['precio'] * $item['cantidad'];
+    if ($producto && $cantidad > $producto['stock']) {
+        header("Location: carrito.php?error=stock_insuficiente");
+        exit;
+    }
+
+    $_SESSION['carrito'][$id]['cantidad'] = $cantidad;
+    header("Location: carrito.php?updated=1");
+    exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>Carrito - Tienda Plus</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
-body { background:#f8f9fa; font-family:Arial,sans-serif; }
-.container { max-width:900px; margin:40px auto; }
-.card { border-radius:12px; margin-bottom:20px; }
-.thumb { width:80px; height:80px; object-fit:cover; border-radius:8px; }
-.total { font-size:1.2rem; font-weight:bold; text-align:right; margin-top:20px; }
-.btn-pink { background: #f08db2; color: white; font-weight: 600; border-radius: 30px; padding: 10px 20px; border: none; }
-.btn-pink:hover { background: #e76da0; color: white; }
+body {
+    font-family: 'Poppins', sans-serif;
+    background: #fafafa;
+    margin: 0; padding: 0;
+}
+h1 {
+    text-align: center;
+    color: #ff69b4;
+    margin-top: 30px;
+}
+.carrito {
+    max-width: 900px;
+    margin: 40px auto;
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+.item-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    transition: all 0.3s ease;
+}
+.item-card:hover { background: #fff6fb; }
+button {
+    background: #ff69b4;
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+button:hover { background: #ff8fc6; }
+.total {
+    text-align: right;
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 20px;
+}
+.vacio {
+    text-align: center;
+    font-size: 18px;
+    color: #777;
+    margin-top: 50px;
+}
+#alert-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 14px 22px;
+    border-radius: 10px;
+    display: none;
+    font-weight: 600;
+    font-size: 15px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    animation: floatIn 0.6s ease forwards;
+}
+@keyframes floatIn {
+    from { opacity: 0; transform: translateY(-15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Confirmación de eliminación */
+#confirm-overlay {
+    position: fixed; inset:0; background: rgba(0,0,0,0.5);
+    display: none; justify-content:center; align-items:center; z-index:2000;
+}
+#confirm-overlay .confirm-box {
+    background:#fff; padding:25px 35px; border-radius:10px;
+    text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.3); max-width:300px;
+}
+#confirm-overlay .confirm-box h3 { margin-bottom:20px; color:#333; }
+#confirm-overlay .confirm-box button {
+    margin:0 10px; padding:8px 16px; border-radius:6px; cursor:pointer; border:none; font-weight:600;
+}
+.btn-si { background:#dc3545; color:#fff; }
+.btn-no { background:#6c757d; color:#fff; }
+
+/* ✅ Responsive mejorado */
+@media (max-width: 600px) {
+    .carrito {
+        width: 95%;
+        padding: 15px;
+    }
+    .item-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .item-card div {
+        width: 100%;
+        text-align: left;
+    }
+    .total {
+        text-align: center;
+        font-size: 16px;
+    }
+    button {
+        width: 100%;
+        margin-top: 5px;
+    }
+}
 </style>
 </head>
 <body>
-<div class="container">
-<h1 class="mb-4 text-center">🛒 Tu Carrito</h1>
 
-<?php if(empty($_SESSION['carrito'])): ?>
-    <div class="alert alert-info text-center">Tu carrito está vacío.</div>
-<?php else: ?>
-<form method="POST">
-  <?php foreach($_SESSION['carrito'] as $id => $item): ?>
-    <div class="card shadow-sm p-3 d-flex flex-row align-items-center">
-      <img src="<?= htmlspecialchars($item['imagen'] ?? 'img/products/default.png') ?>" class="thumb me-3">
-      <div class="flex-grow-1">
-        <h5><?= htmlspecialchars($item['nombre']) ?></h5>
-        <p>Precio unitario: $<?= number_format($item['precio'], 0, ',', '.') ?></p>
-        <div class="d-flex align-items-center gap-2">
-          <label>Cantidad:</label>
-          <input type="number" name="cant[<?= $id ?>]" value="<?= $item['cantidad'] ?>" min="1" class="form-control" style="width:70px;">
-        </div>
-        <p class="mt-2">Subtotal: $<?= number_format($item['precio'] * $item['cantidad'], 0, ',', '.') ?></p>
-      </div>
-      <div>
-        <button type="submit" name="eliminar" value="<?= $id ?>" class="btn btn-danger">Eliminar</button>
-      </div>
+<h1>🛍️ Tu Carrito</h1>
+<div id="alert-message"></div>
+
+<div class="carrito">
+<?php if (empty($_SESSION['carrito'])): ?>
+    <p class="vacio">Tu carrito está vacío.</p>
+    <div style="text-align:center;">
+        <a href="catalogo.php"><button>🛒 Ver productos</button></a>
     </div>
-  <?php endforeach; ?>
+<?php else: ?>
+    <?php
+    $total = 0;
+    foreach ($_SESSION['carrito'] as $item):
+        $subtotal = $item['precio'] * $item['cantidad'];
+        $total += $subtotal;
+    ?>
+    <div class="item-card">
+        <div><strong><?= htmlspecialchars($item['nombre']) ?></strong></div>
+        <div class="precio" data-precio="<?= $item['precio'] ?>">$<?= number_format($item['precio'],0,',','.') ?></div>
+        <div>
+            <form method="POST" style="display:inline;">
+                <input type="hidden" name="id" value="<?= $item['id'] ?>">
+                <input type="number" class="cantidad" name="cantidad" value="<?= $item['cantidad'] ?>" min="1" style="width:60px;">
+                <button type="submit" name="actualizar">↻</button>
+            </form>
+        </div>
+        <div class="subtotal">Subtotal: $<?= number_format($subtotal,0,',','.') ?></div>
+        <div>
+            <form method="POST" style="display:inline;">
+                <input type="hidden" name="id" value="<?= $item['id'] ?>">
+                <button type="submit" name="eliminar" class="btn-eliminar" data-id="<?= $item['id'] ?>">🗑️</button>
+            </form>
+        </div>
+    </div>
+    <?php endforeach; ?>
 
-  <p class="total">Total: $<?= number_format($total,0,',','.') ?></p>
-
-  <div class="d-flex justify-content-between mt-3">
-    <button type="submit" name="modificar" class="btn btn-primary">Actualizar cantidades</button>
-
-    <?php if($usuario_id): ?>
-      <a href="checkout.php" class="btn btn-pink">Continuar al pago</a>
-    <?php else: ?>
-      <a href="login.php?redir=checkout.php" class="btn btn-pink">Continuar al pago</a>
-    <?php endif; ?>
-  </div>
-</form>
+    <div class="total">Total: $<?= number_format($total,0,',','.') ?></div>
+    <div style="text-align:right; margin-top:20px;">
+        <a href="checkout.php"><button>Continuar al pago 💳</button></a>
+    </div>
 <?php endif; ?>
 </div>
+
+<!-- Confirmación de eliminación -->
+<div id="confirm-overlay">
+    <div class="confirm-box">
+        <h3>¿Eliminar este producto?</h3>
+        <button class="btn-si">Sí</button>
+        <button class="btn-no">No</button>
+    </div>
+</div>
+
+<script>
+// ✅ Manejador de alertas y mensajes
+document.addEventListener("DOMContentLoaded", () => {
+    const alerta = document.getElementById("alert-message");
+    const overlay = document.getElementById("confirm-overlay");
+    const btnSi = overlay?.querySelector(".btn-si");
+    const btnNo = overlay?.querySelector(".btn-no");
+
+    function mostrar(msg, tipo="success") {
+        alerta.textContent = msg;
+        alerta.style.backgroundColor = tipo==="success"?"#28a745":"#dc3545";
+        alerta.style.display = "block";
+        alerta.style.opacity = 1;
+        setTimeout(()=>{
+            alerta.style.transition="opacity 1s ease";
+            alerta.style.opacity=0;
+            setTimeout(()=>{ alerta.style.display="none"; alerta.style.opacity=1; },1000);
+        },4500);
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if(params.has("added")) mostrar("🛍️ Producto agregado al carrito");
+    if(params.has("updated")) mostrar("✅ Cantidad actualizada");
+    if(params.has("deleted")) mostrar("🗑️ Producto eliminado correctamente","error");
+    if(params.has("error")) {
+        const err = params.get("error");
+        if(err==="sin_stock") mostrar("🚫 Producto sin stock","error");
+        if(err==="stock_insuficiente") mostrar("⚠️ Stock insuficiente","error");
+        if(err==="producto_no_existe") mostrar("❌ Producto no encontrado","error");
+    }
+
+    // Confirmación de eliminación
+    document.querySelectorAll(".btn-eliminar").forEach(btn=>{
+        btn.addEventListener("click", (e)=>{
+            e.preventDefault();
+            const id = btn.dataset.id;
+            overlay.style.display="flex";
+
+            btnSi.onclick = ()=>{
+                const form=document.createElement("form");
+                form.method="POST";
+                form.innerHTML=`<input type="hidden" name="id" value="${id}">
+                                <input type="hidden" name="eliminar" value="1">`;
+                document.body.appendChild(form);
+                form.submit();
+            };
+            btnNo.onclick = ()=>{ overlay.style.display="none"; };
+        });
+    });
+});
+</script>
+
 </body>
+</html>
+
 </html>

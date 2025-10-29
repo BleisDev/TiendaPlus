@@ -2,8 +2,8 @@
 session_start();
 include_once('../backend/conexion.php');
 
-$id_usuario = $_SESSION['id_usuario'] ?? 0;
-if (!$id_usuario) {
+$usuario_id = $_SESSION['usuario_id'] ?? 0;
+if (!$usuario_id) {
     header("Location: login.php");
     exit;
 }
@@ -12,16 +12,16 @@ if (!$id_usuario) {
 $sql = "SELECT SUM(p.precio * c.cantidad) as total
         FROM carrito c
         JOIN productos p ON c.producto_id = p.id
-        WHERE c.usuario_id = $id_usuario";
+        WHERE c.usuario_id = $usuario_id";
 $total = $conn->query($sql)->fetch_assoc()['total'] ?? 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Crear pedido (tabla maestro)
-    $conn->query("INSERT INTO pedidos (usuario_id, fecha, total) VALUES ($id_usuario, NOW(), $total)");
+    $conn->query("INSERT INTO pedidos (usuario_id, fecha, total) VALUES ($usuario_id, NOW(), $total)");
     $id_pedido = $conn->insert_id;
 
     // Insertar detalles
-    $sql_detalle = "SELECT producto_id, cantidad, precio FROM carrito WHERE usuario_id = $id_usuario";
+    $sql_detalle = "SELECT producto_id, cantidad, precio FROM carrito WHERE usuario_id = $usuario_id";
     $res = $conn->query($sql_detalle);
     while($fila = $res->fetch_assoc()) {
         $conn->query("INSERT INTO detalle_pedido (pedido_id, producto_id, cantidad, precio_unitario)
@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Vaciar carrito
-    $conn->query("DELETE FROM carrito WHERE usuario_id = $id_usuario");
+    $conn->query("DELETE FROM carrito WHERE usuario_id = $usuario_id");
 
     // Redirigir al resumen
     header("Location: resumen_compra.php?id=$id_pedido");

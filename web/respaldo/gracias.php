@@ -22,7 +22,7 @@ $pedido = $resultPedido->fetch_assoc();
 
 // Obtener productos comprados
 $sqlDetalle = $conn->prepare("SELECT d.cantidad, d.precio_unitario, pr.nombre 
-                              FROM detalle_pedidos d
+                              FROM detalle_pedido d
                               JOIN productos pr ON d.producto_id = pr.id
                               WHERE d.pedido_id = ?");
 $sqlDetalle->bind_param("i", $pedido_id);

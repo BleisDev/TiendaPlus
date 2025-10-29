@@ -1,16 +1,27 @@
 <?php
+session_start();
 include("../backend/conexion.php");
 
-$correo = "cliente@ejemplo.com"; // 🔴 CAMBIA ESTO: en realidad debería tomarse del login del usuario
+// 🔹 Tomar el ID del usuario desde la sesión
+$usuario_id = $_SESSION['usuario_id'] ?? null;
 
-$sql = "SELECT * FROM pedidos WHERE correo = '$correo' ORDER BY fecha DESC";
-$pedidos = $conn->query($sql);
+if (!$usuario_id) {
+    echo "⚠️ Debes iniciar sesión para ver tus pedidos.";
+    exit;
+}
+
+// Consultar pedidos del usuario
+$sql = "SELECT * FROM pedidos WHERE usuario_id = ? ORDER BY fecha DESC";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $usuario_id);
+$stmt->execute();
+$pedidos = $stmt->get_result();
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Mis pedidos</title>
+  <title>Mis Pedidos</title>
   <style>
     body { font-family: Arial, sans-serif; margin:20px; }
     h1 { color:#ff4081; }
@@ -28,15 +39,17 @@ $pedidos = $conn->query($sql);
       <th>Fecha</th>
       <th>Total</th>
       <th>Método de pago</th>
-      <th>Factura</th>
+      <th>Detalle</th>
     </tr>
-    <?php while($row=$pedidos->fetch_assoc()): ?>
+    <?php while($row = $pedidos->fetch_assoc()): ?>
     <tr>
-      <td><?php echo $row['id']; ?></td>
-      <td><?php echo $row['fecha']; ?></td>
-      <td>$<?php echo number_format($row['total'],2); ?></td>
-      <td><?php echo $row['metodo_pago']; ?></td>
-      <td><a href="factura.php?id=<?php echo $row['id']; ?>">Ver factura</a></td>
+      <td><?= $row['id'] ?></td>
+      <td><?= $row['fecha'] ?></td>
+      <td>$<?= number_format($row['total'],2) ?></td>
+      <td><?= htmlspecialchars($row['metodo_pago']) ?></td>
+      <td>
+        <a href="pedido_exitoso.php?pedido_id=<?= $row['id'] ?>">Ver pedido</a>
+      </td>
     </tr>
     <?php endwhile; ?>
   </table>

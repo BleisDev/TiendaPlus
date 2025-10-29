@@ -62,10 +62,10 @@ INSERT INTO `categorias` (`id`, `nombre`, `descripcion`, `fecha_creacion`) VALUE
 -- --------------------------------------------------------
 
 --
--- Estructura de tabla para la tabla `detalle_pedidos`
+-- Estructura de tabla para la tabla `detalle_pedido`
 --
 
-CREATE TABLE `detalle_pedidos` (
+CREATE TABLE `detalle_pedido` (
   `id` int(11) NOT NULL,
   `pedido_id` int(11) NOT NULL,
   `producto_id` int(11) NOT NULL,
@@ -178,9 +178,9 @@ ALTER TABLE `categorias`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indices de la tabla `detalle_pedidos`
+-- Indices de la tabla `detalle_pedido`
 --
-ALTER TABLE `detalle_pedidos`
+ALTER TABLE `detalle_pedido`
   ADD PRIMARY KEY (`id`),
   ADD KEY `pedido_id` (`pedido_id`),
   ADD KEY `producto_id` (`producto_id`);
@@ -232,9 +232,9 @@ ALTER TABLE `categorias`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT de la tabla `detalle_pedidos`
+-- AUTO_INCREMENT de la tabla `detalle_pedido`
 --
-ALTER TABLE `detalle_pedidos`
+ALTER TABLE `detalle_pedido`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -273,11 +273,11 @@ ALTER TABLE `carrito`
   ADD CONSTRAINT `carrito_ibfk_2` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`);
 
 --
--- Filtros para la tabla `detalle_pedidos`
+-- Filtros para la tabla `detalle_pedido`
 --
-ALTER TABLE `detalle_pedidos`
-  ADD CONSTRAINT `detalle_pedidos_ibfk_1` FOREIGN KEY (`pedido_id`) REFERENCES `pedidos` (`id`),
-  ADD CONSTRAINT `detalle_pedidos_ibfk_2` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`);
+ALTER TABLE `detalle_pedido`
+  ADD CONSTRAINT `detalle_pedido_ibfk_1` FOREIGN KEY (`pedido_id`) REFERENCES `pedidos` (`id`),
+  ADD CONSTRAINT `detalle_pedido_ibfk_2` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`);
 
 --
 -- Filtros para la tabla `pedidos`

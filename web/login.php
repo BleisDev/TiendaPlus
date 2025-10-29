@@ -20,7 +20,7 @@ if (isset($_POST['login'])) {
 
         // ADMIN (contraseña en texto plano)
         if ($usuario['rol'] === 'admin' && $pass === $usuario['password']) {
-            $_SESSION['id_usuario'] = $usuario['id'];
+            $_SESSION['usuario_id'] = $usuario['id'];
             $_SESSION['nombre'] = $usuario['nombre'];
             $_SESSION['rol'] = $usuario['rol'];
             header("Location: ../backend/panel.php");
@@ -28,7 +28,7 @@ if (isset($_POST['login'])) {
         } 
         // CLIENTE (contraseña en hash)
         elseif ($usuario['rol'] === 'cliente' && password_verify($pass, $usuario['password'])) {
-            $_SESSION['id_usuario'] = $usuario['id'];
+            $_SESSION['usuario_id'] = $usuario['id'];
             $_SESSION['nombre'] = $usuario['nombre'];
             $_SESSION['rol'] = $usuario['rol'];
             header("Location: index.php");

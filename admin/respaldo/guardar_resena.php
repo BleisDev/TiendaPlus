@@ -27,7 +27,7 @@ if ($producto_id <= 0 || $comentario === '') {
 }
 
 // (Opcional) verificar que el usuario compró el producto:
-// $q = $conn->prepare("SELECT 1 FROM detalle_pedidos dp JOIN pedidos p ON dp.pedido_id = p.id WHERE p.usuario_id = ? AND dp.producto_id = ? LIMIT 1");
+// $q = $conn->prepare("SELECT 1 FROM detalle_pedido dp JOIN pedidos p ON dp.pedido_id = p.id WHERE p.usuario_id = ? AND dp.producto_id = ? LIMIT 1");
 // $q->bind_param("ii",$usuario_id,$producto_id); $q->execute(); if ($q->get_result()->num_rows==0) { ... }
 
 $stmt = $conn->prepare("INSERT INTO resenas (usuario_id, producto_id, comentario, calificacion, fecha) VALUES (?, ?, ?, ?, NOW())");
