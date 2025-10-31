@@ -1,114 +1,217 @@
 <?php
-session_start();
+// Conexión a la base de datos
+$conexion = new mysqli("localhost", "root", "", "tiendaplus");
+
+if ($conexion->connect_error) {
+    die("Error de conexión: " . $conexion->connect_error);
+}
+
+// Consulta para mostrar productos destacados
+$query = "SELECT * FROM productos WHERE destacado = 1";
+$resultado = $conexion->query($query);
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Tienda Plus</title>
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TIENDA PLUS</title>
   <style>
-    body { font-family: Arial, sans-serif; }
-    .hero {
-      background: url("img/img2.jpg") no-repeat center center;
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #fff;
+      color: #333;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 60px;
+      border-bottom: 1px solid #eee;
+      background-color: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+
+    nav a {
+      margin: 0 20px;
+      text-decoration: none;
+      color: #000;
+      font-weight: 500;
+    }
+
+    nav a:hover {
+      color: #ff4d6d;
+    }
+
+    .icons {
+      display: flex;
+      gap: 20px;
+      font-size: 22px;
+    }
+
+    .icons a {
+      color: #333;
+      text-decoration: none;
+    }
+
+    /* Banner principal */
+    .banner {
+      position: relative;
+      width:100%;
+      height: 700px;
+      background-image: url('img/img2.jpg'); 
       background-size: cover;
-      color: white;
-      height: 100vh;
+      background-position: center;
       display: flex;
       align-items: center;
-      justify-content: center;
-      text-align: center;
-      flex-direction: column;
+      justify-content: flex-start;
+      color: white;
     }
-    .hero h1 { font-size: 3rem; font-weight: bold; }
-    .hero p { font-size: 1.2rem; margin-bottom: 20px; }
-    .navbar-brand { font-weight: bold; }
-    footer { background: #ff69aa; color: #fff; padding: 20px; text-align: center; margin-top: 50px; }
+
+    .banner-content {
+      margin-left: 80px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 400px;
+    }
+
+    .banner-content h1 {
+      font-size: 42px;
+      margin-bottom: 20px;
+      line-height: 1.2;
+    }
+
+    .banner-content a {
+      display: inline-block;
+      padding: 14px 30px;
+      background-color: white;
+      color: #000;
+      font-weight: bold;
+      text-decoration: none;
+      border-radius: 30px;
+    }
+
+    .banner-content a:hover {
+      background-color: #ff4d6d;
+      color: #fff;
+    }
+
+    /* Productos */
+    .productos {
+      padding: 60px 80px;
+      text-align: center;
+    }
+
+    .productos h2 {
+      font-size: 30px;
+      margin-bottom: 40px;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+    }
+
+    .producto {
+      border: 1px solid #eee;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+      transition: transform 0.2s;
+    }
+
+    .producto:hover {
+      transform: translateY(-5px);
+    }
+
+    .producto img {
+      width: 100%;
+      height: 320px;
+      object-fit: cover;
+    }
+
+    .producto-info {
+      padding: 15px;
+    }
+
+    .producto-info h3 {
+      font-size: 18px;
+      margin: 10px 0;
+    }
+
+    .producto-info p {
+      font-size: 16px;
+      color: #ff4d6d;
+      font-weight: bold;
+    }
+
+    footer {
+      background-color: #f5f5f5;
+      text-align: center;
+      padding: 25px;
+      font-size: 14px;
+      color: #666;
+      margin-top: 60px;
+    }
   </style>
 </head>
 <body>
 
-<!-- 🔹 Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <div class="container">
-    <a class="navbar-brand" href="index.php">TIENDA PLUS</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="menu">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link active" href="index.php">Inicio</a></li>
-        <li class="nav-item"><a class="nav-link" href="catalogo.php">Catálogo</a></li>
-        <li class="nav-item"><a class="nav-link" href="guia_tallas.php">Guía de tallas</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Contáctanos</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Ayuda</a></li>
-      </ul>
-
-      <ul class="navbar-nav">
-       <?php if (isset($_SESSION['usuario_id'])): ?>
-  <li class="nav-item">
-    <a class="nav-link" href="perfil.php">👤 <?php echo htmlspecialchars($_SESSION['nombre']); ?></a>
-  </li>
-  <li class="nav-item">
-    <a class="nav-link" href="../backend/logout.php">Cerrar sesión</a>
-  </li>
-<?php else: ?>
-  <li class="nav-item"><a class="nav-link" href="login.php">Iniciar sesión</a></li>
-  <li class="nav-item"><a class="nav-link" href="registro.php">Registrarse</a></li>
-<?php endif; ?>
-
-        <li class="nav-item">
-          <a class="nav-link" href="carrito.php">🛒 
-            <?php echo isset($_SESSION['carrito']) ? count($_SESSION['carrito']) : 0; ?>
-          </a>
-        </li>
-      </ul>
-    </div>
+<header>
+  <div class="logo">TIENDA PLUS</div>
+  <nav>
+    <a href="ayuda.php">Novedades</a>
+    <a href="catalogo.php">Ropa</a>
+    <a href="contactanos.php">Tendencias</a>
+    <a href="guia_tallas.php">Guía de estilo</a>
+    <a href="nosotros.php">Nosotros</a>
+  </nav>
+  <div class="icons">
+    <a href="login.php" title="Mi cuenta">👤</a>
+    <a href="resenas.php" title="Reseñas">♡</a>
+    <a href="carrito.php" title="Carrito">🛒</a>
   </div>
-</nav>
+</header>
 
-<!-- 🔹 Hero -->
-<section class="hero">
-  <h1>Nueva Colección de Invierno</h1>
-  <p>Encuentra tu estilo con Tienda Plus 💖</p>
-  <a href="catalogo.php" class="btn btn-light btn-lg">Ver colección</a>
+<section class="banner">
+  <div class="banner-content">
+    <h1>Grandes Momentos</h1>
+    <a href="#">COMPRA YA</a>
+  </div>
 </section>
 
-<!-- 🔹 Productos destacados -->
-<div class="container my-5">
-  <h2 class="text-center mb-4">Productos destacados</h2>
-  <div class="row g-4 justify-content-center">
-    <div class="col-md-4">
-      <div class="card shadow-sm border-0">
-        <img src="img/img3.jpg" class="card-img-top" alt="Abrigo Invierno">
-        <div class="card-body text-center">
-          <h5 class="card-title">Abrigo Invierno</h5>
-          <p class="card-text text-muted">$120.000</p>
-          <a href="producto.php?id=1" class="btn btn-outline-dark">Ver más</a>
+<section class="productos">
+  <h2>Productos Destacados</h2>
+  <div class="grid">
+    <?php while ($fila = $resultado->fetch_assoc()) { ?>
+      <div class="producto">
+        <img src="img/<?php echo $fila['imagen']; ?>" alt="<?php echo $fila['nombre']; ?>">
+        <div class="producto-info">
+          <h3><?php echo $fila['nombre']; ?></h3>
+          <p>$<?php echo number_format($fila['precio'], 2); ?></p>
         </div>
       </div>
-    </div>
-
-    <div class="col-md-4">
-      <div class="card shadow-sm border-0">
-        <img src="img/img4.jpg" class="card-img-top" alt="Zapatos Cuero">
-        <div class="card-body text-center">
-          <h5 class="card-title">Zapatos de Cuero</h5>
-          <p class="card-text text-muted">$220.000</p>
-          <a href="producto.php?id=2" class="btn btn-outline-dark">Ver más</a>
-        </div>
-      </div>
-    </div>
+    <?php } ?>
   </div>
-</div>
-
-<!-- 🔹 Footer -->
+</section>
 <footer>
-  <p>© 2025 Tienda Plus Size - Todos los derechos reservados</p>
+  © 2025 WOMENAL PLUS | Todos los derechos reservados
 </footer>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,312 +1,287 @@
 <?php
 session_start();
-require_once('../backend/conexion.php'); // Asegúrate de ajustar la ruta si es diferente
+include_once("../backend/conexion.php");
 
-// Inicializar carrito si no existe
+// Si el usuario ha iniciado sesión, guardamos su ID
+$usuario_id = $_SESSION['usuario_id'] ?? null;
+
+// --- Inicializar carrito de sesión ---
 if (!isset($_SESSION['carrito'])) {
     $_SESSION['carrito'] = [];
 }
 
-// --- Agregar producto ---
-if (isset($_POST['agregar'])) {
-    $id = $_POST['id'];
+// --- Sincronizar carrito con base de datos (solo si el usuario inició sesión) ---
+if ($usuario_id) {
+    // 🧩 Cargar productos guardados en BD al iniciar
+    $sql = $conn->prepare("SELECT c.producto_id, c.cantidad, p.nombre, p.precio, p.imagen
+                           FROM carrito c 
+                           INNER JOIN productos p ON c.producto_id = p.id 
+                           WHERE c.usuario_id = ?");
+    $sql->bind_param("i", $usuario_id);
+    $sql->execute();
+    $resultado = $sql->get_result();
 
-    // ✅ Validar stock desde la base de datos
-    $stmt = $conn->prepare("SELECT nombre, precio, stock FROM productos WHERE id=?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    $producto = $res->fetch_assoc();
-    $stmt->close();
-
-    if (!$producto) {
-        header("Location: carrito.php?error=producto_no_existe");
-        exit;
-    }
-
-    if ($producto['stock'] <= 0) {
-        header("Location: carrito.php?error=sin_stock");
-        exit;
-    }
-
-    $nombre = $producto['nombre'];
-    $precio = $producto['precio'];
-    $cantidad = 1;
-
-    if (isset($_SESSION['carrito'][$id])) {
-        $nuevaCantidad = $_SESSION['carrito'][$id]['cantidad'] + 1;
-        if ($nuevaCantidad > $producto['stock']) {
-            header("Location: carrito.php?error=stock_insuficiente");
-            exit;
-        }
-        $_SESSION['carrito'][$id]['cantidad'] = $nuevaCantidad;
-    } else {
-        $_SESSION['carrito'][$id] = [
-            'id' => $id,
-            'nombre' => $nombre,
-            'precio' => $precio,
-            'cantidad' => $cantidad
+    $carritoBD = [];
+    while ($fila = $resultado->fetch_assoc()) {
+        $carritoBD[$fila['producto_id']] = [
+            'nombre' => $fila['nombre'],
+            'precio' => $fila['precio'],
+            'imagen' => $fila['imagen'],
+            'cantidad' => $fila['cantidad']
         ];
     }
-    header("Location: carrito.php?added=1");
-    exit;
+
+    // Fusionar carrito de sesión con carrito BD
+    $_SESSION['carrito'] = array_replace($_SESSION['carrito'], $carritoBD);
 }
 
-// --- Eliminar producto ---
-if (isset($_POST['eliminar'])) {
-    $id = $_POST['id'];
-    unset($_SESSION['carrito'][$id]);
-    header("Location: carrito.php?deleted=1");
-    exit;
-}
+// --- ACTUALIZAR cantidad ---
+if (isset($_POST['accion']) && $_POST['accion'] === 'actualizar') {
+    $id = intval($_POST['id']);
+    $cantidad = intval($_POST['cantidad']);
+    if (isset($_SESSION['carrito'][$id])) {
+        $_SESSION['carrito'][$id]['cantidad'] = $cantidad;
 
-// --- Actualizar cantidad ---
-if (isset($_POST['actualizar'])) {
-    $id = $_POST['id'];
-    $cantidad = max(1, intval($_POST['cantidad']));
-
-    // ✅ Validar stock al actualizar
-    $stmt = $conn->prepare("SELECT stock FROM productos WHERE id=?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    $producto = $res->fetch_assoc();
-    $stmt->close();
-
-    if ($producto && $cantidad > $producto['stock']) {
-        header("Location: carrito.php?error=stock_insuficiente");
-        exit;
+        // 🧩 Actualizar también en BD si está logueado
+        if ($usuario_id) {
+            $sql = $conn->prepare("UPDATE carrito SET cantidad = ? WHERE usuario_id = ? AND producto_id = ?");
+            $sql->bind_param("iii", $cantidad, $usuario_id, $id);
+            $sql->execute();
+        }
     }
-
-    $_SESSION['carrito'][$id]['cantidad'] = $cantidad;
-    header("Location: carrito.php?updated=1");
     exit;
 }
+
+// --- ELIMINAR producto ---
+if (isset($_POST['accion']) && $_POST['accion'] === 'eliminar') {
+    $id = intval($_POST['id']);
+    unset($_SESSION['carrito'][$id]);
+
+    // 🧩 Eliminar también de la base de datos
+    if ($usuario_id) {
+        $sql = $conn->prepare("DELETE FROM carrito WHERE usuario_id = ? AND producto_id = ?");
+        $sql->bind_param("ii", $usuario_id, $id);
+        $sql->execute();
+    }
+    exit;
+}
+
+// --- MENSAJE flotante ---
+$mensaje = '';
+if (isset($_GET['msg'])) {
+    switch ($_GET['msg']) {
+        case 'added': $mensaje = "🛍 Producto agregado al carrito"; break;
+        case 'updated': $mensaje = "✅ Cantidad actualizada"; break;
+        case 'deleted': $mensaje = "🗑 Producto eliminado"; break;
+    }
+}
+
+$total = 0;
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Carrito - Tienda Plus</title>
+<title>🛍 Carrito de compra | TiendaPlus</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 <style>
+/* 🎨 --- Todo tu mismo estilo --- */
 body {
     font-family: 'Poppins', sans-serif;
-    background: #fafafa;
-    margin: 0; padding: 0;
+    background-color: #fff;
+    margin: 0;
+    padding: 0;
 }
-h1 {
+h2 {
     text-align: center;
-    color: #ff69b4;
-    margin-top: 30px;
+    color: #ff4ba8;
+    margin-top: 40px;
 }
-.carrito {
-    max-width: 900px;
-    margin: 40px auto;
-    background: #fff;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+table {
+    width: 90%;
+    margin: 30px auto;
+    border-collapse: collapse;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
-.item-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    border-bottom: 1px solid #eee;
-    transition: all 0.3s ease;
+th, td {
+    padding: 15px;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: center;
 }
-.item-card:hover { background: #fff6fb; }
+th {
+    background-color: #ff4ba8;
+    color: #fff;
+}
+td img {
+    width: 70px;
+    border-radius: 10px;
+    transition: transform 0.3s ease;
+}
+td img:hover { transform: scale(1.05); }
 button {
-    background: #ff69b4;
+    background-color: #ff4ba8;
+    color: #fff;
     border: none;
-    color: white;
+    border-radius: 10px;
     padding: 6px 12px;
-    border-radius: 6px;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: 0.3s ease;
 }
-button:hover { background: #ff8fc6; }
+button:hover {
+    background-color: #e63c93;
+    transform: scale(1.05);
+}
+input[type="number"] {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 5px;
+    width: 60px;
+    text-align: center;
+}
 .total {
     text-align: right;
-    font-size: 18px;
+    width: 90%;
+    margin: 20px auto;
     font-weight: bold;
-    margin-top: 20px;
+    font-size: 1.2rem;
+    color: #333;
 }
-.vacio {
-    text-align: center;
-    font-size: 18px;
-    color: #777;
-    margin-top: 50px;
+.botones {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 50px;
 }
-#alert-message {
+.btn {
+    text-decoration: none;
+    background-color: #ff4ba8;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 10px;
+    transition: 0.3s ease;
+}
+.btn:hover {
+    background-color: #e63c93;
+    transform: scale(1.05);
+}
+.fade { animation: fadeIn 0.5s ease forwards; }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.fade-out { animation: fadeOut 0.4s ease forwards; }
+@keyframes fadeOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.9); height: 0; }
+}
+/* 🌈 Mensaje flotante */
+#mensaje {
     position: fixed;
     top: 20px;
     right: 20px;
-    background: #28a745;
-    color: white;
+    background: #ff4ba8;
+    color: #fff;
     padding: 14px 22px;
     border-radius: 10px;
-    display: none;
     font-weight: 600;
-    font-size: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    opacity: 0;
+    pointer-events: none;
     z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-    animation: floatIn 0.6s ease forwards;
 }
-@keyframes floatIn {
-    from { opacity: 0; transform: translateY(-15px); }
+#mensaje.show { animation: showMsg 0.6s ease forwards; }
+@keyframes showMsg {
+    from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
-}
-
-/* Confirmación de eliminación */
-#confirm-overlay {
-    position: fixed; inset:0; background: rgba(0,0,0,0.5);
-    display: none; justify-content:center; align-items:center; z-index:2000;
-}
-#confirm-overlay .confirm-box {
-    background:#fff; padding:25px 35px; border-radius:10px;
-    text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.3); max-width:300px;
-}
-#confirm-overlay .confirm-box h3 { margin-bottom:20px; color:#333; }
-#confirm-overlay .confirm-box button {
-    margin:0 10px; padding:8px 16px; border-radius:6px; cursor:pointer; border:none; font-weight:600;
-}
-.btn-si { background:#dc3545; color:#fff; }
-.btn-no { background:#6c757d; color:#fff; }
-
-/* ✅ Responsive mejorado */
-@media (max-width: 600px) {
-    .carrito {
-        width: 95%;
-        padding: 15px;
-    }
-    .item-card {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    .item-card div {
-        width: 100%;
-        text-align: left;
-    }
-    .total {
-        text-align: center;
-        font-size: 16px;
-    }
-    button {
-        width: 100%;
-        margin-top: 5px;
-    }
 }
 </style>
 </head>
 <body>
 
-<h1>🛍️ Tu Carrito</h1>
-<div id="alert-message"></div>
+<h2 class="fade">🛍 Carrito de compra</h2>
 
-<div class="carrito">
-<?php if (empty($_SESSION['carrito'])): ?>
-    <p class="vacio">Tu carrito está vacío.</p>
-    <div style="text-align:center;">
-        <a href="catalogo.php"><button>🛒 Ver productos</button></a>
-    </div>
-<?php else: ?>
-    <?php
-    $total = 0;
-    foreach ($_SESSION['carrito'] as $item):
-        $subtotal = $item['precio'] * $item['cantidad'];
-        $total += $subtotal;
-    ?>
-    <div class="item-card">
-        <div><strong><?= htmlspecialchars($item['nombre']) ?></strong></div>
-        <div class="precio" data-precio="<?= $item['precio'] ?>">$<?= number_format($item['precio'],0,',','.') ?></div>
-        <div>
-            <form method="POST" style="display:inline;">
-                <input type="hidden" name="id" value="<?= $item['id'] ?>">
-                <input type="number" class="cantidad" name="cantidad" value="<?= $item['cantidad'] ?>" min="1" style="width:60px;">
-                <button type="submit" name="actualizar">↻</button>
-            </form>
-        </div>
-        <div class="subtotal">Subtotal: $<?= number_format($subtotal,0,',','.') ?></div>
-        <div>
-            <form method="POST" style="display:inline;">
-                <input type="hidden" name="id" value="<?= $item['id'] ?>">
-                <button type="submit" name="eliminar" class="btn-eliminar" data-id="<?= $item['id'] ?>">🗑️</button>
-            </form>
-        </div>
-    </div>
-    <?php endforeach; ?>
+<div id="mensaje"><?= htmlspecialchars($mensaje) ?></div>
 
-    <div class="total">Total: $<?= number_format($total,0,',','.') ?></div>
-    <div style="text-align:right; margin-top:20px;">
-        <a href="checkout.php"><button>Continuar al pago 💳</button></a>
-    </div>
-<?php endif; ?>
-</div>
+<table class="fade" id="tablaCarrito">
+    <tr>
+        <th>Producto</th>
+        <th>Precio</th>
+        <th>Cantidad</th>
+        <th>Acción</th>
+    </tr>
 
-<!-- Confirmación de eliminación -->
-<div id="confirm-overlay">
-    <div class="confirm-box">
-        <h3>¿Eliminar este producto?</h3>
-        <button class="btn-si">Sí</button>
-        <button class="btn-no">No</button>
-    </div>
+    <?php if (empty($_SESSION['carrito'])): ?>
+        <tr><td colspan="4">Tu carrito está vacío 🛒</td></tr>
+    <?php else: ?>
+        <?php foreach ($_SESSION['carrito'] as $id => $item): 
+            if (!isset($item['nombre']) || !isset($item['precio'])) continue;
+            $subtotal = $item['precio'] * $item['cantidad'];
+            $total += $subtotal;
+        ?>
+        <tr id="fila<?= $id ?>" class="fade">
+            <td>
+                <?php if (!empty($item['imagen'])): ?>
+                    <img src="../uploads/<?= htmlspecialchars($item['imagen']) ?>" alt="<?= htmlspecialchars($item['nombre']) ?>"><br>
+                <?php endif; ?>
+                <?= htmlspecialchars($item['nombre']) ?>
+            </td>
+            <td>$<?= number_format($item['precio'], 0, ',', '.') ?></td>
+            <td>
+                <input type="number" id="cantidad<?= $id ?>" value="<?= $item['cantidad'] ?>" min="1"
+                       onchange="actualizarCantidad(<?= $id ?>)">
+            </td>
+            <td><button onclick="eliminarProducto(<?= $id ?>)">🗑</button></td>
+        </tr>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</table>
+
+<p class="total fade">Total: $<?= number_format($total, 0, ',', '.') ?></p>
+
+<div class="botones fade">
+    <a href="catalogo.php" class="btn">🛍 Seguir comprando</a>
+    <?php if ($total > 0): ?>
+        <a href="checkout.php" class="btn">💳 Ir a pagar</a>
+    <?php endif; ?>
 </div>
 
 <script>
-// ✅ Manejador de alertas y mensajes
 document.addEventListener("DOMContentLoaded", () => {
-    const alerta = document.getElementById("alert-message");
-    const overlay = document.getElementById("confirm-overlay");
-    const btnSi = overlay?.querySelector(".btn-si");
-    const btnNo = overlay?.querySelector(".btn-no");
-
-    function mostrar(msg, tipo="success") {
-        alerta.textContent = msg;
-        alerta.style.backgroundColor = tipo==="success"?"#28a745":"#dc3545";
-        alerta.style.display = "block";
-        alerta.style.opacity = 1;
-        setTimeout(()=>{
-            alerta.style.transition="opacity 1s ease";
-            alerta.style.opacity=0;
-            setTimeout(()=>{ alerta.style.display="none"; alerta.style.opacity=1; },1000);
-        },4500);
+    const msg = document.getElementById("mensaje");
+    if (msg.textContent.trim() !== "") {
+        msg.classList.add("show");
+        setTimeout(() => {
+            msg.style.transition = "opacity 1s ease";
+            msg.style.opacity = "0";
+        }, 3000);
     }
-
-    const params = new URLSearchParams(window.location.search);
-    if(params.has("added")) mostrar("🛍️ Producto agregado al carrito");
-    if(params.has("updated")) mostrar("✅ Cantidad actualizada");
-    if(params.has("deleted")) mostrar("🗑️ Producto eliminado correctamente","error");
-    if(params.has("error")) {
-        const err = params.get("error");
-        if(err==="sin_stock") mostrar("🚫 Producto sin stock","error");
-        if(err==="stock_insuficiente") mostrar("⚠️ Stock insuficiente","error");
-        if(err==="producto_no_existe") mostrar("❌ Producto no encontrado","error");
-    }
-
-    // Confirmación de eliminación
-    document.querySelectorAll(".btn-eliminar").forEach(btn=>{
-        btn.addEventListener("click", (e)=>{
-            e.preventDefault();
-            const id = btn.dataset.id;
-            overlay.style.display="flex";
-
-            btnSi.onclick = ()=>{
-                const form=document.createElement("form");
-                form.method="POST";
-                form.innerHTML=`<input type="hidden" name="id" value="${id}">
-                                <input type="hidden" name="eliminar" value="1">`;
-                document.body.appendChild(form);
-                form.submit();
-            };
-            btnNo.onclick = ()=>{ overlay.style.display="none"; };
-        });
-    });
 });
+
+function actualizarCantidad(id) {
+    const cantidad = document.getElementById("cantidad" + id).value;
+    fetch("carrito.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "accion=actualizar&id=" + id + "&cantidad=" + cantidad
+    }).then(() => {
+        window.location.href = "carrito.php?msg=updated";
+    });
+}
+
+function eliminarProducto(id) {
+    if (!confirm("¿Quieres eliminar este producto del carrito?")) return;
+    const fila = document.getElementById("fila" + id);
+    fila.classList.add("fade-out");
+    setTimeout(() => {
+        fetch("carrito.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "accion=eliminar&id=" + id
+        }).then(() => {
+            window.location.href = "carrito.php?msg=deleted";
+        });
+    }, 400);
+}
 </script>
-
 </body>
-</html>
-
 </html>

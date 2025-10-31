@@ -1,13 +1,15 @@
 <?php
 session_start();
-include_once('../backend/conexion.php');
+include_once('../backend/conexion.php'); // Ajusta ruta si es necesario
 
 $error = "";
 $redir = $_GET['redir'] ?? 'index.php';
 
 if (isset($_POST['registrar'])) {
     $nombre = trim($_POST['nombre']);
-    $email  = trim($_POST['email']);
+    // Sanitizar email para eliminar espacios invisibles u otros caracteres
+    $email_raw = $_POST['email'] ?? '';
+    $email = filter_var(trim($email_raw), FILTER_SANITIZE_EMAIL);
     $pass   = trim($_POST['pass']);
 
     // Validaciones básicas
@@ -19,7 +21,7 @@ if (isset($_POST['registrar'])) {
         $error = "❌ La contraseña debe tener al menos 6 caracteres.";
     } else {
         // Verificar si el correo ya está registrado
-        $sqlCheck = $conn->prepare("SELECT * FROM usuarios WHERE email = ?");
+        $sqlCheck = $conn->prepare("SELECT id FROM usuarios WHERE email = ?");
         $sqlCheck->bind_param("s", $email);
         $sqlCheck->execute();
         $resultadoCheck = $sqlCheck->get_result();
@@ -33,15 +35,20 @@ if (isset($_POST['registrar'])) {
 
             $sql = $conn->prepare("INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)");
             $sql->bind_param("ssss", $nombre, $email, $clave_segura, $rol);
-            $sql->execute();
 
-            // Guardar sesión con nombre correcto
-            $_SESSION['usuario_id'] = $conn->insert_id;
-            $_SESSION['nombre'] = $nombre;
-            $_SESSION['rol'] = $rol;
+            if ($sql->execute()) {
+                // Guardar sesión con nombre correcto
+                $_SESSION['usuario_id'] = $conn->insert_id;
+                $_SESSION['nombre'] = $nombre;
+                $_SESSION['rol'] = $rol;
 
-            header("Location: $redir");
-            exit;
+                // Mensaje de éxito en sesión y redirección
+                $_SESSION['registro_exito'] = "✅ Usuario registrado correctamente. Bienvenido/a, $nombre.";
+                header("Location: $redir");
+                exit;
+            } else {
+                $error = "❌ Error al crear el usuario: " . $conn->error;
+            }
         }
     }
 }
@@ -63,11 +70,19 @@ body { font-family: Arial, sans-serif; background:#f8f9fa; }
 <div class="container">
     <h2 class="text-center mb-4">🛍️ Registro de Usuario</h2>
 
-    <?php if (!empty($error)): ?>
-        <div class="alert alert-danger"><?= $error ?></div>
-    <?php endif; ?>
+    <?php
+    // Mostrar mensaje de éxito si existe (después de registro)
+    if (!empty($_SESSION['registro_exito'])) {
+        echo '<div class="alert alert-success">'.htmlspecialchars($_SESSION['registro_exito']).'</div>';
+        unset($_SESSION['registro_exito']);
+    }
+    // Mostrar error del servidor si existe
+    if (!empty($error)) {
+        echo '<div class="alert alert-danger">'.htmlspecialchars($error).'</div>';
+    }
+    ?>
 
-    <form method="POST" id="formRegistro">
+    <form method="POST" id="formRegistro" novalidate>
         <div class="mb-3">
             <label>Nombre completo</label>
             <input type="text" name="nombre" class="form-control" value="<?= htmlspecialchars($_POST['nombre'] ?? '') ?>">
@@ -95,10 +110,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const pass = document.querySelector("input[name='pass']");
     let errores = [];
 
-    // Validaciones visuales
+    // Validaciones visuales (regex corregido)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (nombre.value.trim() === "") errores.push("⚠️ El nombre es obligatorio.");
     if (email.value.trim() === "") errores.push("⚠️ El correo es obligatorio.");
-    else if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.value.trim()))
+    else if (!emailRegex.test(email.value.trim()))
       errores.push("⚠️ El correo no es válido.");
     if (pass.value.trim() === "") errores.push("⚠️ La contraseña es obligatoria.");
     else if (pass.value.trim().length < 6)

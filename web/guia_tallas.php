@@ -11,7 +11,7 @@
       color: #333;
     }
     .banner {
-      background-image: url("img/medida.jpg"); /* Cambia por tu imagen */
+      background-image: url("img/tallas.jpg"); /* Cambia por tu imagen */
       background-size: cover;
       background-position: center;
       height: 300px;
