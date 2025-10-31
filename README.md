@@ -12,33 +12,26 @@ El objetivo es simular una tienda de moda en línea con catálogo, carrito de co
 - 💳 **Checkout funcional** con registro de pedidos.  
 - 👤 **Registro e inicio de sesión** de usuarios.  
 - 🛠️ **Panel administrativo** con gestión de:
+  - Usuarios
   - Productos
   - Categorías
-  - Usuarios
   - Pedidos
-  - Reseñas  
+  - Detalle de pedidos
+  - Reseñas
+  - Carrito
 
 ---
 
 ## 📂 Estructura del proyecto
 
 TiendaPlus/
-│── admin/ # Panel de administración
-│ │── index.php # Dashboard admin
-│ │── productos.php
-│ │── usuarios.php
-│ │── pedidos.php
-│ │── resenas.php
-│ └── ...
-│
-│── backend/ # Archivos PHP del backend
+│── backend/ # Panel de administración y archivos del sistema
+│ │── panel.php # Dashboard admin
 │ │── conexion.php
 │ │── login.php
-│ │── guardar_usuario.php
-│ │── guardar_pedido.php
 │ └── ...
 │
-│── includes/ # Conexión a la base de datos
+includes/ # Conexión a la base de datos
 │ └── db.php
 │
 │── web/ # Frontend de la tienda (usuarios)
@@ -53,7 +46,7 @@ TiendaPlus/
 │ │── estilos.css
 │ └── img/ # Imágenes de ejemplo
 │
-│── TiendaPlus.sql # Script de la base de datos
+─ TiendaPlus.sql # Script de la base de datos
 │── README.md # Documentación del proyecto
 
 ---
@@ -65,37 +58,47 @@ TiendaPlus/
    - **Mac** → `/Applications/XAMPP/htdocs/`
 
 2. Importa la base de datos:
-   - Abre `phpMyAdmin` → crea la base `tienda_plus`.
+   - Abre **phpMyAdmin** → crea la base **`TiendaPlus`**.
    - Importa el archivo **`TiendaPlus.sql`**.
 
-3. Inicia Apache y MySQL en XAMPP.
+3. Inicia **Apache** y **MySQL** en XAMPP.
 
 4. Abre en tu navegador:
    - 🏠 [http://localhost/TiendaPlus/web/index.php](http://localhost/TiendaPlus/web/index.php) → Tienda para clientes.  
-   - ⚙️ [http://localhost/TiendaPlus/admin/index.php](http://localhost/TiendaPlus/admin/index.php) → Panel administrativo.  
+   - ⚙️ [http://localhost/TiendaPlus/backend/panel.php](http://localhost/TiendaPlus/backend/panel.php) → Panel administrativo.  
 
 ---
 
 ## 📸 Capturas de pantalla
 
 ### 🏠 Página de inicio
-![Inicio](web/img/img.jpg)
+![Inicio](web/img/imgt.png)
 
 ### 👗 Catálogo de productos
-![Catálogo](web/img/img2.jpg)
+![Catálogo](web/img/img.png)
 
 ### 🛒 Carrito de compras
-![Carrito](web/img/img3.jpg)
+![Carrito](web/img/imgc.png)
 
 ### ⚙️ Panel administrativo
-![Admin](web/img/img4.jpg)
+![Admin](web/img/imgi.png)
+
+El panel permite gestionar:
+
+- Usuarios  
+- Productos  
+- Categorías  
+- Pedidos  
+- Detalle de pedidos  
+- Reseñas  
+- Carrito
 
 ---
 
 ## 👩‍💻 Autor
 
 Proyecto desarrollado por **Bleidis Dev**  
-📧 Contacto: [GitHub](https://github.com/BleisDev)  
+📧 Contacto: [GitHub](https://github.com/BleisDev)
 
 ---
 
