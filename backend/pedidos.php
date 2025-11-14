@@ -20,12 +20,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'], $_POST['estado'
     $stmt->close();
 }
 
-// --- Consultar pedidos con nombre de usuario ---
+// --- Eliminar pedido ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['eliminar_id'])) {
+    $id = intval($_POST['eliminar_id']);
+    $conn->query("DELETE FROM detalle_pedido WHERE pedido_id = $id");
+    $conn->query("DELETE FROM pedidos WHERE id = $id");
+    echo "<script>location.href='pedidos.php';</script>";
+    exit;
+}
+
+// --- Consultar pedidos ---
 $sql = "SELECT p.id, u.nombre AS usuario, p.fecha, p.total, p.estado 
         FROM pedidos p 
         LEFT JOIN usuarios u ON p.usuario_id = u.id
         ORDER BY p.fecha DESC";
 $result = $conn->query($sql);
+
+// --- Consultar detalles de pedido si se selecciona uno ---
+$detalles = [];
+if (isset($_GET['ver'])) {
+    $pedido_id = intval($_GET['ver']);
+    $query_detalle = "SELECT dp.producto_id, pr.nombre AS producto, dp.cantidad, dp.precio
+                      FROM detalle_pedido dp
+                      LEFT JOIN productos pr ON dp.producto_id = pr.id
+                      WHERE dp.pedido_id = $pedido_id";
+    $detalles = $conn->query($query_detalle);
+}
 ?>
 
 <!DOCTYPE html>
@@ -62,6 +82,13 @@ $result = $conn->query($sql);
         th {
             background: #343a40;
             color: white;
+        }
+        .detalle {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -116,7 +143,8 @@ $result = $conn->query($sql);
               </form>
             </td>
             <td>
-              <form method="POST" onsubmit="return confirm('¿Seguro que deseas eliminar este pedido?')">
+              <a href="pedidos.php?ver=<?= $row['id'] ?>" class="btn btn-sm btn-info">Ver Detalle</a>
+              <form method="POST" class="d-inline" onsubmit="return confirm('¿Seguro que deseas eliminar este pedido?')">
                 <input type="hidden" name="eliminar_id" value="<?= $row['id'] ?>">
                 <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
               </form>
@@ -129,18 +157,49 @@ $result = $conn->query($sql);
         <p class="text-muted">No hay pedidos registrados aún.</p>
       <?php endif; ?>
 
+      <!-- Detalle del pedido -->
+      <?php if (!empty($detalles) && $detalles->num_rows > 0): ?>
+      <div class="detalle shadow">
+        <h4>🧾 Detalle del Pedido #<?= $pedido_id ?></h4>
+        <table class="table table-bordered mt-3">
+          <thead class="table-dark">
+            <tr>
+              <th>ID Producto</th>
+              <th>Nombre</th>
+              <th>Cantidad</th>
+              <th>Precio Unitario</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php 
+              $suma = 0;
+              while ($d = $detalles->fetch_assoc()): 
+                $subtotal = $d['cantidad'] * $d['precio'];
+                $suma += $subtotal;
+            ?>
+            <tr>
+              <td><?= $d['producto_id'] ?></td>
+              <td><?= htmlspecialchars($d['producto']) ?></td>
+              <td><?= $d['cantidad'] ?></td>
+              <td>$<?= number_format($d['precio'], 2) ?></td>
+              <td>$<?= number_format($subtotal, 2) ?></td>
+            </tr>
+            <?php endwhile; ?>
+            <tr>
+              <td colspan="4" class="text-end fw-bold">Total</td>
+              <td class="fw-bold">$<?= number_format($suma, 2) ?></td>
+            </tr>
+          </tbody>
+        </table>
+        <a href="pedidos.php" class="btn btn-secondary mt-2">⬅ Volver a lista</a>
+      </div>
+      <?php endif; ?>
+
     </div>
   </div>
 </div>
 </body>
 </html>
 
-<?php
-// --- Eliminar pedido ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['eliminar_id'])) {
-    $id = intval($_POST['eliminar_id']);
-    $conn->query("DELETE FROM pedidos WHERE id = $id");
-    echo "<script>location.href='pedidos.php';</script>";
-}
-$conn->close();
-?>
+<?php $conn->close(); ?>

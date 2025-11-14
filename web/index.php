@@ -1,6 +1,7 @@
 <?php
-// Conexión a la base de datos
-$conexion = new mysqli("localhost", "root", "", "tiendaplus");
+session_start();
+$conexion = new mysqli("localhost", "root", "", "TiendaPlus");
+
 
 if ($conexion->connect_error) {
     die("Error de conexión: " . $conexion->connect_error);
@@ -16,7 +17,7 @@ $resultado = $conexion->query($query);
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TIENDA PLUS</title>
+  <title>Tienda Plus</title>
   <style>
     body {
       margin: 0;
@@ -42,6 +43,7 @@ $resultado = $conexion->query($query);
       font-size: 28px;
       font-weight: 700;
       letter-spacing: 2px;
+      color: #ff4d6d;
     }
 
     nav a {
@@ -57,6 +59,7 @@ $resultado = $conexion->query($query);
 
     .icons {
       display: flex;
+      align-items: center;
       gap: 20px;
       font-size: 22px;
     }
@@ -66,12 +69,32 @@ $resultado = $conexion->query($query);
       text-decoration: none;
     }
 
+    .user-info {
+      font-size: 16px;
+      background: #ff4d6d;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 30px;
+      font-weight: bold;
+    }
+
+    .logout {
+      font-size: 14px;
+      color: #ff4d6d;
+      text-decoration: none;
+      margin-left: 10px;
+    }
+
+    .logout:hover {
+      text-decoration: underline;
+    }
+
     /* Banner principal */
     .banner {
       position: relative;
-      width:100%;
+      width: 100%;
       height: 700px;
-      background-image: url('img/img2.jpg'); 
+      background-image: url('img/img2.jpg');
       background-size: cover;
       background-position: center;
       display: flex;
@@ -181,19 +204,28 @@ $resultado = $conexion->query($query);
     <a href="guia_tallas.php">Guía de estilo</a>
     <a href="nosotros.php">Nosotros</a>
   </nav>
+
   <div class="icons">
-    <a href="login.php" title="Mi cuenta">👤</a>
+    <?php if(isset($_SESSION["nombre"])): ?>
+        <span class="user-info">👤 <?php echo htmlspecialchars($_SESSION["nombre"]); ?></span>
+        <a href="../backend/logout.php" class="logout">Cerrar sesión</a>
+    <?php else: ?>
+        <a href="login.php" title="Mi cuenta">👤</a>
+    <?php endif; ?>
     <a href="resenas.php" title="Reseñas">♡</a>
     <a href="carrito.php" title="Carrito">🛒</a>
   </div>
 </header>
 
 <section class="banner">
-  <div class="banner-content">
-    <h1>Grandes Momentos</h1>
-    <a href="#">COMPRA YA</a>
+  <img src="img/banner1.jpg" alt="Tienda Plus Size" class="banner-img">
+  <div class="banner-text">
+    <h2>Moda Plus Size</h2>
+    <p>Encuentra tu estilo, siente tu confianza 💖</p>
+    <a href="catalogo.php" class="btn">Ver Catálogo</a>
   </div>
 </section>
+
 
 <section class="productos">
   <h2>Productos Destacados</h2>
@@ -209,8 +241,9 @@ $resultado = $conexion->query($query);
     <?php } ?>
   </div>
 </section>
+
 <footer>
-  © 2025 WOMENAL PLUS | Todos los derechos reservados
+  © 2025 TIENDA PLUS | Todos los derechos reservados
 </footer>
 
 </body>

@@ -1,205 +1,139 @@
+/* === ESTILOS GLOBALES === */
 body {
-  font-family: Arial, sans-serif;
+  font-family: "Poppins", sans-serif;
   background: #fff;
   margin: 0;
   padding: 0;
-  color: #ff69b4;
+  color: #333;
 }
 
+/* Títulos principales */
 .titulo {
   text-align: center;
-  margin: 20px 0;
-  color: #444;
+  margin: 30px 0 20px;
+  color: #e91e63;
+  font-size: 2em;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
-/* Contenedor de formularios (login/checkout) */
+/* === FORMULARIOS (login, registro, checkout) === */
 .contenedor-form {
-  max-width: 400px;
-  margin: 20px auto;
-  padding: 20px;
+  max-width: 420px;
+  margin: 30px auto;
+  padding: 25px;
   background: #fafafa;
   border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
 }
+
 .contenedor-form input,
 .contenedor-form select {
   width: 100%;
   padding: 10px;
-  margin: 8px 0;
+  margin: 10px 0;
   border-radius: 6px;
   border: 1px solid #ccc;
+  font-size: 1em;
 }
 
-/* Catálogo */
+/* === CATÁLOGO === */
 .catalogo {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
-  padding: 20px;
+  gap: 25px;
+  padding: 30px;
 }
+
 .producto {
   text-align: center;
-  background: #fafafa;
+  background: #fff;
   padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  transition: transform 0.2s ease;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
 }
+
 .producto:hover {
   transform: translateY(-5px);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.1);
 }
+
 .producto img {
   width: 100%;
+  height: 250px;
+  object-fit: cover;
   border-radius: 12px;
   margin-bottom: 10px;
 }
+
 .precio {
   font-weight: bold;
   color: #444;
+  font-size: 1.1em;
 }
 
-/* Botones */
+/* === BOTONES === */
 .btn, .btn-add {
   display: inline-block;
   margin-top: 10px;
-  background: #f06292;
+  background: linear-gradient(90deg, #f06292, #ec407a);
   color: white;
   padding: 10px 20px;
   border-radius: 25px;
   border: none;
   cursor: pointer;
   text-decoration: none;
-}
-.btn:hover, .btn-add:hover {
-  background: #ec407a;
+  font-weight: 500;
+  transition: transform 0.2s, background 0.3s;
 }
 
-/* Carrito */
-.carrito {
-  max-width: 600px;
-  margin: 20px auto;
-  background: #fafafa;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+.btn:hover, .btn-add:hover {
+  transform: scale(1.05);
+  background: linear-gradient(90deg, #ec407a, #d81b60);
 }
+
+/* === CARRITO === */
+.carrito {
+  max-width: 700px;
+  margin: 30px auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
 .carrito ul {
   list-style: none;
   padding: 0;
 }
+
 .carrito li {
-  padding: 8px;
-  border-bottom: 1px solid #ddd;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
 }
+
 .total {
   margin-top: 15px;
   font-size: 1.2em;
   text-align: right;
+  font-weight: 600;
+  color: #e91e63;
 }
+
 .acciones {
-  margin-top: 20px;
+  margin-top: 25px;
   display: flex;
   gap: 15px;
   justify-content: center;
 }
-/* === Diseño Responsive para Tienda Plus === */
 
-/* Adaptación general para tablets y móviles */
-@media (max-width: 768px) {
-  body {
-    padding: 10px;
-    font-size: 15px;
-  }
-
-  .titulo {
-    font-size: 1.5em;
-    margin: 15px 0;
-  }
-
-  /* Catálogo en 2 columnas */
-  .catalogo {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
-    padding: 10px;
-  }
-
-  .producto {
-    padding: 10px;
-  }
-
-  .producto img {
-    width: 100%;
-    height: auto;
-  }
-
-  /* Formularios (login, registro, checkout) */
-  .contenedor-form {
-    max-width: 90%;
-    padding: 15px;
-  }
-
-  .contenedor-form input,
-  .contenedor-form select {
-    font-size: 1em;
-  }
-
-  /* Carrito */
-  .carrito {
-    width: 95%;
-    margin: 10px auto;
-    padding: 15px;
-  }
-
-  .carrito ul li {
-    font-size: 0.95em;
-  }
-
-  .total {
-    text-align: center;
-    font-size: 1.1em;
-  }
-
-  .acciones {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .acciones .btn {
-    width: 100%;
-  }
-}
-
-/* Para pantallas muy pequeñas (celulares de menos de 480px) */
-@media (max-width: 480px) {
-  .titulo {
-    font-size: 1.3em;
-  }
-
-  /* Catálogo en 1 sola columna */
-  .catalogo {
-    grid-template-columns: 1fr;
-  }
-
-  .producto {
-    margin: 0 auto;
-  }
-
-  .btn, .btn-add {
-    width: 100%;
-    font-size: 0.9em;
-    padding: 10px;
-  }
-
-  .carrito {
-    font-size: 0.9em;
-  }
-}
- /* === ALERTAS FLOTANTES (Mensajes animados del carrito) === */
+/* === ALERTAS FLOTANTES === */
 #alert-message {
   position: fixed;
   top: 20px;
   right: 20px;
-  background: #28a745; /* verde éxito por defecto */
+  background: #28a745;
   color: #fff;
   padding: 12px 20px;
   border-radius: 10px;
@@ -209,11 +143,9 @@ body {
   opacity: 0;
   display: none;
   z-index: 9999;
-  transition: all 0.4s ease;
   animation: slideIn 0.3s ease forwards;
 }
 
-/* Efecto de entrada (desde la derecha) */
 @keyframes slideIn {
   from {
     transform: translateX(100%);
@@ -225,7 +157,6 @@ body {
   }
 }
 
-/* Variantes de color según tipo */
 #alert-message.success {
   background-color: #28a745;
 }
@@ -233,4 +164,49 @@ body {
 #alert-message.error {
   background-color: #dc3545;
 }
- 
+
+/* === DISEÑO RESPONSIVE === */
+@media (max-width: 768px) {
+  .catalogo {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    padding: 15px;
+  }
+
+  .producto img {
+    height: 200px;
+  }
+
+  .contenedor-form {
+    width: 90%;
+    padding: 15px;
+  }
+
+  .acciones {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .titulo {
+    font-size: 1.4em;
+  }
+
+  .catalogo {
+    grid-template-columns: 1fr;
+  }
+
+  .producto {
+    margin: 0 auto;
+  }
+
+  .carrito {
+    width: 95%;
+    font-size: 0.9em;
+  }
+}
